@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>509simu · 相机仿真参数工具集</title>
+<title>爱玩的老人 · 个人主页</title>
 <style>
 :root{
   --bg:#f4f6f9;--card:#ffffff;--ink:#1f2a36;--mut:#68788a;--line:#dde4ec;
@@ -21,8 +21,15 @@ header h1{font-size:16px;margin:0;font-weight:600}
 .ver{color:var(--mut);font-size:12px}
 .hint{margin-left:auto;color:var(--mut);font-size:12px}
 main{max-width:1080px;margin:0 auto;padding:24px 16px}
-.sub{color:var(--mut);font-size:13px;margin:0 0 18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.hero{display:flex;align-items:center;gap:18px;margin:0 0 26px;flex-wrap:wrap}
+.hero .face{width:64px;height:64px;border-radius:50%;background:var(--card);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font-size:34px;flex:none;box-shadow:0 2px 8px rgba(31,42,54,.08)}
+.hero h2{font-size:24px;margin:0 0 2px}
+.hero p{margin:0;color:var(--mut);font-size:13px}
+.sec{margin:0 0 10px;font-size:15px;font-weight:600}
+.sec .n{color:var(--mut);font-weight:400;font-size:12.5px;margin-left:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:26px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;
   padding:18px 20px;display:flex;flex-direction:column;gap:8px;
   transition:border-color .15s, box-shadow .15s}
@@ -37,36 +44,63 @@ main{max-width:1080px;margin:0 auto;padding:24px 16px}
   border:1px solid var(--acc);color:#fff;background:var(--acc);border-radius:6px;
   padding:5px 16px}
 .card .go:hover{background:#174a8e}
-.card.tool .go{margin-top:auto}
-footer{max-width:1080px;margin:0 auto;padding:0 16px 28px;color:var(--mut);font-size:12px}
+footer{max-width:1080px;margin:0 auto;padding:0 16px 28px;color:var(--mut);font-size:12px;
+  text-align:center}
 footer code{background:#eef2f7;border-radius:4px;padding:1px 6px;font-size:11.5px}
+footer .icp{display:block;margin-top:8px;color:var(--mut);text-decoration:none}
+footer .icp:hover{color:var(--acc)}
 </style>
 </head>
 <body>
 <header>
-  <h1>509simu · 相机仿真参数工具集</h1>
+  <h1>👴 爱玩的老人 · 个人主页</h1>
   <span class="ver" id="ver"></span>
-  <span class="hint">单文件网页，双击即用，无任何依赖</span>
+  <span class="hint">单文件静态主页 · 无任何依赖</span>
 </header>
 <main>
-  <p class="sub">本项目入口页。以下各页面相互独立，均在浏览器本地运行（参数自动保存在浏览器 localStorage）。</p>
+  <div class="hero">
+    <div class="face">🎮</div>
+    <div>
+      <h2>爱玩的老人</h2>
+      <p>老金的个人主页 —— 我的站点、工具与游戏，都收在这里。</p>
+    </div>
+  </div>
+
+  <p class="sec">我的站点<span class="n">leige.site</span></p>
   <div class="grid">
 
-    <a class="card tool" href="wiskbroom.html" style="text-decoration:none;color:inherit">
-      <h2>面阵相机卫星摆扫 · 参数一致性校验</h2>
-      <span class="tag">摆扫成像几何 / 时序计算 · 版本以页面内显示为准（当前 v1.0.260820-4）</span>
+    <a class="card" href="https://bigdog.leige.site" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+      <h2>🐕 bigdog.leige.site</h2>
+      <span class="tag">外部站点 · 新标签页打开</span>
+      <span class="file">https://bigdog.leige.site</span>
+      <span class="go">前往 ↗</span>
+    </a>
+
+    <a class="card" href="https://music.leige.site" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
+      <h2>🎵 music.leige.site</h2>
+      <span class="tag">外部站点 · 新标签页打开</span>
+      <span class="file">https://music.leige.site</span>
+      <span class="go">前往 ↗</span>
+    </a>
+
+  </div>
+
+  <p class="sec">本站工具与游戏<span class="n">部署在本服务器</span></p>
+  <div class="grid">
+
+    <a class="card" href="game.html" style="text-decoration:none;color:inherit">
+      <h2>🎮 一起小学：百款经典玩法溯源还原（Pro版）</h2>
+      <span class="tag">经典小游戏合集 · 版本以页面内显示为准</span>
       <ul>
-        <li>全局/轨道、沿迹、穿迹三组参数，留空自动推导</li>
-        <li>恒等式矛盾检测（容差可调）与物理约束（条带/帧间漏扫、时序、地平线）</li>
-        <li>参数 TXT / JSON 存档导入导出</li>
+        <li>经典小游戏合集</li>
       </ul>
-      <span class="file">wiskbroom.html</span>
+      <span class="file">game.html</span>
       <span class="go">打开 →</span>
     </a>
 
-    <a class="card tool" href="pushbroom.html" style="text-decoration:none;color:inherit">
-      <h2>线阵推扫相机参数计算</h2>
-      <span class="tag">生成 taijing304_MSS.coef 格式安装系数文件 · 版本以页面内显示为准（当前 v1.0.260820-4）</span>
+    <a class="card" href="pushbroom.html" style="text-decoration:none;color:inherit">
+      <h2>🛰️ 线阵推扫相机参数计算</h2>
+      <span class="tag">生成 taijing304_MSS.coef 格式安装系数文件 · 版本以页面内显示为准</span>
       <ul>
         <li>波段数 / CCD 片数 / 探元 / 焦距 / 轨道 / GSD（任留空自动推导）</li>
         <li>共线 / 交错排列（各波段基偏移 + 奇/偶片交错分量），焦面布置示意图</li>
@@ -76,25 +110,29 @@ footer code{background:#eef2f7;border-radius:4px;padding:1px 6px;font-size:11.5p
       <span class="go">打开 →</span>
     </a>
 
-    <a class="card" href="game.html" style="text-decoration:none;color:inherit">
-      <h2>一起小学：百款经典玩法溯源还原（Pro版）</h2>
-      <span class="tag">独立娱乐页面，与工具集无关</span>
+    <a class="card" href="wiskbroom.html" style="text-decoration:none;color:inherit">
+      <h2>🛰️ 面阵相机卫星摆扫 · 参数一致性校验</h2>
+      <span class="tag">摆扫成像几何 / 时序计算 · 版本以页面内显示为准</span>
       <ul>
-        <li>经典小游戏合集</li>
+        <li>全局/轨道、沿迹、穿迹三组参数，留空自动推导</li>
+        <li>恒等式矛盾检测（容差可调）与物理约束（条带/帧间漏扫、时序、地平线）</li>
+        <li>参数 TXT / JSON 存档导入导出</li>
       </ul>
-      <span class="file">game.html</span>
+      <span class="file">wiskbroom.html</span>
       <span class="go">打开 →</span>
     </a>
 
   </div>
 </main>
 <footer>
-  自测：<code>node test_core.cjs</code>（摆扫）· <code>node test_pushbroom.cjs</code>（推扫，含用 taijing304_MSS.coef 复现几何模型）。各页面版本号升级后请同步本页标注。
+  本页版本：<code id="ver2"></code> · 托管于阿里云 ECS（nginx 静态站）
+  <a class="icp" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">鄂ICP备2025092414号-4</a>
 </footer>
 <script>
 'use strict';
 const VERSION = 'v1.0.260820-1';
 document.getElementById('ver').textContent = VERSION;
+document.getElementById('ver2').textContent = VERSION;
 </script>
 </body>
 </html>

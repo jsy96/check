@@ -1,16 +1,22 @@
 # 509simu · 相机仿真参数工具集
 
-两个单文件网页工具（双击用浏览器打开即用，无任何依赖）+ Node 自测脚本：
+单文件网页工具（双击用浏览器打开即用，无任何依赖）+ Node 自测脚本：
 
 | 文件 | 说明 |
 |---|---|
-| `index.html` | 项目入口导航页（v1.0.260820-1），链接下列三个页面 |
+| `index.html` | 主页「爱玩的老人」（v1.0.260820-1）：链接外部站点 bigdog.leige.site / music.leige.site，以及本项目 game.html / pushbroom.html / wiskbroom.html |
 | `wiskbroom.html` | 面阵相机卫星摆扫 · 参数一致性校验（v1.0.260820-4） |
 | `pushbroom.html` | 线阵推扫相机参数计算（v1.0.260820-4） |
 | `test_core.cjs` | wiskbroom.html 核心计算自测 |
 | `test_pushbroom.cjs` | pushbroom.html 核心计算自测（含用 taijing304_MSS.coef 复现几何模型） |
 | `taijing304_MSS.coef` | 线阵推扫相机安装系数实例文件（4 波段 × 3 片 × 3072 探元），推扫工具的输出格式参照 |
 | `game.html` | 与本工具集无关的独立页面 |
+
+---
+
+## 部署（阿里云 ECS · Ubuntu 24.04）
+
+全站为纯静态文件，由 nginx 托管，站点根目录 `/var/www/html/`，公网地址 `http://101.132.36.207/`。更新页面后把对应文件重新上传覆盖即可（如 `scp index.html root@<IP>:/var/www/html/`）。
 
 ---
 
