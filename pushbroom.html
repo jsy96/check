@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>线阵推扫相机参数计算</title>
+<style>
+:root{
+  --bg:#f4f6f9;--card:#ffffff;--ink:#1f2a36;--mut:#68788a;--line:#dde4ec;
+  --ok:#167a48;--okbg:#e8f6ee;--okln:#bfe6cf;
+  --bad:#b3261e;--badbg:#fdeceb;--badln:#f3c1bd;
+  --info:#7a5d00;--infobg:#fff8e1;--infoln:#ead9a0;
+  --acc:#2059a8;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.65 "Segoe UI",system-ui,"Microsoft YaHei",sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header h1{font-size:16px;margin:0;font-weight:600}
+.ver{color:var(--mut);font-size:12px}
+.hctl{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap}
+.hctl select,.hctl button{font:inherit;font-size:13px;border:1px solid var(--line);
+  border-radius:6px;padding:3px 8px;background:#fff;cursor:pointer}
+.hctl button:hover{border-color:var(--acc);color:var(--acc)}
+main{display:grid;grid-template-columns:minmax(360px,460px) minmax(0,1fr);gap:16px;
+  padding:16px;max-width:1440px;margin:0 auto;align-items:start}
+@media(max-width:1000px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:14px 16px;margin-bottom:16px}
+.card>h2{margin:0 0 4px;font-size:15px}
+.card>.sub{color:var(--mut);font-size:12px;margin-bottom:8px}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) 215px;
+  grid-template-areas:"lb ct" "nt dv";gap:2px 10px;
+  padding:7px 0;border-top:1px dashed var(--line)}
+.prow:first-of-type{border-top:0}
+.plabel{grid-area:lb;font-size:13px;align-self:center}
+.pnote{grid-area:nt;font-size:11.5px;color:var(--mut);line-height:1.45}
+.pctl{grid-area:ct;display:flex;gap:6px}
+.pctl input[type=number],.pctl input[type=text]{flex:1;min-width:0;width:100%;padding:3px 8px;
+  border:1px solid var(--line);border-radius:6px;font:inherit;font-size:13px}
+.pctl input:focus{outline:none;border-color:var(--acc)}
+.pctl select{border:1px solid var(--line);border-radius:6px;background:#fff;
+  font-size:12px;padding:3px 2px;max-width:88px}
+.pctl .mini{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;cursor:pointer;padding:3px 8px;white-space:nowrap}
+.pctl .mini:hover{border-color:var(--acc);color:var(--acc)}
+.radios{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.radios label{display:flex;gap:4px;align-items:center;font-size:13px;white-space:nowrap}
+.offmode-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;width:100%}
+.om{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.om label{display:flex;gap:4px;align-items:center;font-size:13px;white-space:nowrap;cursor:pointer}
+.om .subsel{display:flex;gap:4px;align-items:center;font-size:11.5px;color:var(--mut);padding-left:20px}
+.om select{border:1px solid var(--line);border-radius:6px;background:#fff;font-size:12px;padding:2px;max-width:76px}
+.om select:disabled{opacity:.45;cursor:not-allowed}
+.derived{grid-area:dv;font-size:11.5px;color:var(--mut);min-height:15px;
+  font-variant-numeric:tabular-nums}
+#banner{border-radius:10px;padding:10px 16px;margin-bottom:16px;font-weight:600;
+  border:1px solid var(--line);background:var(--card);color:var(--mut)}
+#banner.ok{background:var(--okbg);border-color:var(--okln);color:var(--ok)}
+#banner.bad{background:var(--badbg);border-color:var(--badln);color:var(--bad)}
+.item{display:flex;gap:8px;padding:7px 10px;border-radius:8px;margin-bottom:6px;
+  border:1px solid var(--line);font-size:13px;align-items:baseline;flex-wrap:wrap}
+.item .st{font-weight:700;width:18px;flex:none}
+.item .nm{flex:none;font-weight:600}
+.item .dt{color:var(--mut);font-variant-numeric:tabular-nums}
+.item.ok{background:var(--okbg);border-color:var(--okln)}.item.ok .st{color:var(--ok)}
+.item.bad{background:var(--badbg);border-color:var(--badln)}.item.bad .st{color:var(--bad)}
+.item.info{background:var(--infobg);border-color:var(--infoln)}.item.info .st{color:var(--info)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);
+  font-variant-numeric:tabular-nums}
+th{color:var(--mut);font-weight:600;font-size:12px}
+td.v{white-space:nowrap}
+tr.grprow td{color:var(--acc);font-weight:600;background:#f2f6fb;padding-top:8px}
+footer{max-width:1440px;margin:0 auto;padding:0 16px 24px}
+details summary{cursor:pointer;font-weight:600;color:var(--acc)}
+.formula-note{font-size:13px;margin-top:8px}
+.formula-note p{margin:8px 0}
+.formula-note code{background:#eef2f7;border-radius:4px;padding:1px 6px;font-size:12.5px}
+#coefbar{display:flex;gap:8px;align-items:center;margin:8px 0 4px;flex-wrap:wrap}
+#coefbar input{flex:1;min-width:200px;padding:4px 8px;border:1px solid var(--line);
+  border-radius:6px;font:13px Consolas,monospace}
+#coefbar button{font:inherit;font-size:13px;border:1px solid var(--acc);color:#fff;
+  background:var(--acc);border-radius:6px;padding:4px 14px;cursor:pointer}
+#coefbar button:hover{background:#174a8e}
+#coefbar button:disabled{background:var(--mut);border-color:var(--mut);cursor:not-allowed}
+#legend{font-size:12px;color:var(--mut);margin:2px 0 6px;line-height:1.5}
+#coefPre{width:100%;max-height:420px;overflow:auto;margin:0;background:#f8fafc;
+  border:1px solid var(--line);border-radius:6px;padding:10px 12px;
+  font:12px/1.55 Consolas,"Courier New",monospace;white-space:pre;
+  tab-size:4}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(10px);
+  background:#243447;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:80vw;z-index:99}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--bad)}
+</style>
+</head>
+<body>
+<header>
+  <h1>线阵推扫相机参数计算</h1>
+  <span class="ver" id="ver"></span>
+  <div class="hctl">
+    <label>容差
+      <select id="tolSel">
+        <option value="0.005">0.5%</option>
+        <option value="0.01">1%</option>
+        <option value="0.02" selected>2%</option>
+        <option value="0.05">5%</option>
+        <option value="0.10">10%</option>
+      </select>
+    </label>
+    <button id="btnImportTxt">读取参数 TXT</button>
+    <button id="btnExportTxt">保存参数 TXT</button>
+    <button id="btnReset">重置</button>
+  </div>
+</header>
+<input type="file" id="fileTxt" accept=".txt,text/plain" hidden>
+<main>
+  <section id="inputs">
+
+    <div class="card">
+      <h2>探测器与文件格式</h2>
+      <div class="sub">整线由 N 片 CCD 垂轨拼接；文件含 1 个虚拟片 + N×B 个物理片块</div>
+      <div class="prow"><div class="plabel">波段数 bandCount B</div>
+        <div class="pctl"><input id="in_B" type="number" step="1" min="1" value="4"></div>
+        <div class="pnote">多光谱波段个数；各波段沿轨错开（共线排列）</div><div class="derived"></div></div>
+      <div class="prow"><div class="plabel">每波段 CCD 片数 sensorCount N</div>
+        <div class="pctl"><input id="in_N" type="number" step="1" min="1" value="3"></div>
+        <div class="pnote">同一波段的 N 片 CCD 垂轨并排拼成一条长线阵</div><div class="derived"></div></div>
+      <div class="prow"><div class="plabel">每片探元数 width W</div>
+        <div class="pctl"><input id="in_W" type="number" step="1" min="1" value="3072"></div>
+        <div class="pnote">单片 CCD 的探元个数（文件中的 width）</div><div class="derived" id="dv_Vw"></div></div>
+      <div class="prow"><div class="plabel">拼接重叠像元数 ovl</div>
+        <div class="pctl"><input id="in_ovl" type="number" step="1" min="0" value="0"></div>
+        <div class="pnote">相邻 CCD 垂轨搭接像元数，0 = 无缝；taijing304 实例为 25</div><div class="derived"></div></div>
+      <div class="prow"><div class="plabel">多项式阶数 nCamPoly</div>
+        <div class="pctl"><input id="in_polyN" type="number" step="1" min="1" max="9" value="5"></div>
+        <div class="pnote">lookAngle 多项式阶数，每行系数个数 = 阶数+1（示例文件为 5）</div><div class="derived"></div></div>
+      <div class="prow"><div class="plabel">文件块顺序</div>
+        <div class="pctl"><select id="orderSel" style="max-width:none">
+          <option value="chip">片优先：第1片各波段 → 第2片各波段</option>
+          <option value="band">波段优先：第1波段各片 → 第2波段各片</option>
+        </select></div>
+        <div class="pnote">默认片优先，与需求说明及 taijing304_MSS.coef 实测块序一致</div>
+        <div class="derived"></div></div>
+      <div class="prow"><div class="plabel">虚拟片 X 取法</div>
+        <div class="pctl"><select id="vruleSel" style="max-width:none">
+          <option value="minmax">片内最大 → 片间最小</option>
+          <option value="min">全局最小（taijing304 实例口径）</option>
+        </select></div>
+        <div class="pnote">虚拟片 lookAngleX：每片 CCD 各波段取最大，再各片取最小；交错排列下两种取法结果相同</div>
+        <div class="derived"></div></div>
+      <div class="prow"><div class="plabel">输出文件名</div>
+        <div class="pctl"><input id="in_fname" type="text" value="pushbroom.coef"></div>
+        <div class="pnote">下载到本地的 .coef 文件名（CRLF 换行、无 BOM、%.18e 系数）</div><div class="derived"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>轨道 / 光学</h2>
+      <div class="sub">恒等式 GSD = p·H/f（星下点平面近似）；p、f、H、GSD 任留空一项自动推导</div>
+      <div class="prow"><div class="plabel">焦距 f</div>
+        <div class="pctl"><input id="in_f" type="number" step="any" placeholder="留空自动推导"><select id="un_f"><option>mm</option><option>m</option></select></div>
+        <div class="pnote">主距；生成系数必需（或可由 GSD·p 反推）</div><div class="derived" id="dv_f"></div></div>
+      <div class="prow"><div class="plabel">探元尺寸 p</div>
+        <div class="pctl"><input id="in_p" type="number" step="any" placeholder="留空自动推导"><select id="un_p"><option>μm</option><option>mm</option></select></div>
+        <div class="pnote">垂轨像元尺寸；lookAngleY 斜率 = −p/f</div><div class="derived" id="dv_p"></div></div>
+      <div class="prow"><div class="plabel">轨道高度 H</div>
+        <div class="pctl"><input id="in_H" type="number" step="any" placeholder="留空自动推导"><select id="un_H"><option>km</option><option>m</option></select></div>
+        <div class="pnote">用于 GSD / 幅宽 / 波段沿轨基线计算</div><div class="derived" id="dv_H"></div></div>
+      <div class="prow"><div class="plabel">地面分辨率 GSD</div>
+        <div class="pctl"><input id="in_GSD" type="number" step="any" placeholder="留空自动推导"><select id="un_GSD"><option>m</option><option>cm</option></select></div>
+        <div class="pnote">星下点平面近似 GSD = p·H/f</div><div class="derived" id="dv_GSD"></div></div>
+      <div class="prow"><div class="plabel">地球半径 R</div>
+        <div class="pctl"><input id="in_R" type="number" step="any" value="6371"><select id="un_R"><option>km</option><option>m</option></select></div>
+        <div class="pnote">预填 6371 km；供地平线角校验</div><div class="derived"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>CCD 排列（沿轨方向 X）</h2>
+      <div class="sub">lookAngleX 为沿轨方向；(tanX, tanY, 1) 是相机坐标系探元矢量</div>
+      <div class="prow"><div class="plabel">排列方式</div>
+        <div class="pctl radios">
+          <label><input type="radio" name="layout" value="colinear" checked> 共线排列</label>
+          <label><input type="radio" name="layout" value="staggered"> 交错排列</label>
+        </div>
+        <div class="pnote">共线：各波段整排在沿轨方向错开，片内垂轨拼接；交错：奇/偶片沿轨位置不同</div>
+        <div class="derived"></div></div>
+      <div class="prow"><div class="plabel">偏移输入方式</div>
+        <div class="pctl">
+          <div class="offmode-grid">
+            <div class="om">
+              <label><input type="radio" name="offmode" value="dist" checked> 焦面距离</label>
+              <span class="subsel">单位
+                <select id="offUnitDist"><option value="0">mm</option><option value="1">μm</option></select></span>
+            </div>
+            <div class="om">
+              <label><input type="radio" name="offmode" value="angle"> 离轴角</label>
+              <span class="subsel">选项
+                <select id="offUnitAngle"><option value="0">°</option><option value="1">mrad</option></select></span>
+            </div>
+          </div>
+        </div>
+        <div class="pnote">距主点的沿轨距离 d（tanX = d/f）或沿轨离轴角 α（tanX = tanα）；切换时按焦距自动换算；当前输入方式的单位可用、另一方式置灰</div>
+        <div class="derived"></div></div>
+
+      <div id="colinBox">
+        <div class="prow"><div class="plabel">波段1 偏移 d₁</div>
+          <div class="pctl"><input id="in_d1" type="number" step="any"></div>
+          <div class="pnote">与 Δd 一起用于自动填充各波段偏移</div><div class="derived"></div></div>
+        <div class="prow"><div class="plabel">相邻波段间距 Δd</div>
+          <div class="pctl"><input id="in_dd" type="number" step="any"></div>
+          <div class="pnote">波段 b 偏移 = d₁ + (b−1)·Δd；改 d₁/Δd 会刷新未手工修改的行</div>
+          <div class="pctl" style="grid-area:dv;justify-content:flex-start;margin-top:-2px">
+            <button class="mini" id="btnFill">按 d₁+Δd 填充全部</button>
+          </div></div>
+        <div id="bandRows"></div>
+      </div>
+
+      <div id="stagBox" style="display:none">
+        <div class="prow"><div class="plabel">奇数片偏移（第1,3,5…片）</div>
+          <div class="pctl"><input id="in_dOdd" type="number" step="any"></div>
+          <div class="pnote">奇偶片沿轨错开实现垂轨交错采样；各波段共用同一奇偶布置</div><div class="derived" id="dv_dOdd"></div></div>
+        <div class="prow"><div class="plabel">偶数片偏移（第2,4,6…片）</div>
+          <div class="pctl"><input id="in_dEven" type="number" step="any"></div>
+          <div class="pnote"></div><div class="derived" id="dv_dEven"></div></div>
+      </div>
+    </div>
+
+  </section>
+
+  <section id="report">
+    <div id="banner">请输入参数……</div>
+    <div class="card"><h2>.coef 文件</h2>
+      <div class="sub">预览即文件字节内容（CRLF 换行、无 BOM、系数 %.18e）</div>
+      <div id="coefbar">
+        <input id="fnameEcho" type="text" spellcheck="false">
+        <button id="btnSave">保存 .coef 文件</button>
+      </div>
+      <div id="legend"></div>
+      <pre id="coefPre"></pre>
+    </div>
+    <div class="card"><h2>推导汇总</h2>
+      <div class="sub">由当前参数推导的常用中间量（星下点平面近似，除注明外）</div>
+      <div id="tblSum"></div></div>
+    <div class="card"><h2>一致性校验与物理约束</h2>
+      <div class="sub">恒等式偏差超容差或约束违反即报红</div>
+      <div id="lstChk"></div></div>
+    <div class="card"><h2>布置明细</h2>
+      <div class="sub">各波段沿轨布置与各片垂轨布置</div>
+      <div id="tblLay"></div></div>
+  </section>
+</main>
+<footer>
+  <div class="card">
+    <details>
+      <summary>格式与口径说明（点击展开）</summary>
+      <div class="formula-note">
+        <p><b>文件头</b>：<code>nCamPoly</code> 多项式阶数（每行系数个数 = 阶数+1）；<code>bandCount</code> 波段数 B；<code>sensorCount</code> 每波段片数 N；<code>angleBiasRoll/Pitch/Yaw</code> 与 <code>angleBiasR</code>（3×3 行优先）为本工具固定输出的零偏置 / 单位阵。</p>
+        <p><b>探元块</b>：共 <code>1 + N×B</code> 块，每块三行 <code>width= 探元数</code>、<code>lookAngleX: c₀ … cₖ</code>、<code>lookAngleY: c₀ … cₖ</code>。lookAngleX 沿轨、lookAngleY 垂轨，系数得到的是<b>视角正切值</b>：多项式取值 (tanX, tanY) 使 <code>(tanX, tanY, 1)</code> 为相机坐标系探元视线矢量；自变量为 0 基探元序号 j = 0…W−1。</p>
+        <p><b>几何模型</b>（已用 taijing304_MSS.coef 数值复现验证）：像元角步长 <code>s = p/f</code>；整线关于主点垂轨居中，半跨度 = 虚拟片宽×s/2；第 i 片 <code>lookAngleY</code> 常数项 = 半跨度 − (i−1)·(W−ovl)·s，一次项 = −s；共线排列 lookAngleX 常数项 = tan(波段沿轨离轴角)，交错排列按奇/偶片取值。</p>
+        <p><b>虚拟片（第 0 块）</b>：沿轨方向排在最前面的那组 CCD 拼接得到的虚拟 CCD，width = N·W − (N−1)·ovl，lookAngleY 覆盖整条拼接线。lookAngleX 默认按「<b>每片 CCD 各波段取最大 → 再各片取最小</b>」取值：共线排列（各片均含全部波段）即 tanX 最大的波段，交错排列即奇/偶片中较小者；taijing304_MSS.coef 实例文件的虚拟块为全局最小口径，如需逐字节复现实例可在左栏切为「全局最小」。</p>
+        <p><b>GSD / 幅宽</b>：星下点平面近似 <code>GSD = p·H/f</code>，幅宽 = 虚拟片宽 × GSD；边缘离轴角 = atan(半跨度)，超过地平线角 arcsin(R/(R+H)) 报警；波段间沿轨地面基线 = H·ΔtanX（配准用）。</p>
+        <p><b>块顺序</b>：默认<b>片优先</b>——第 1 片 CCD 的第 1…B 波段，再第 2 片……（与需求说明及 taijing304_MSS.coef 实测块序一致）；如需"第 1 波段的 N 片 → 第 2 波段的 N 片"可在左栏切到波段优先。</p>
+        <p><b>字节格式</b>：ASCII、CRLF 换行、无 BOM、末尾单个换行；系数 C 风格 <code>%.18e</code>（指数至少两位，如 <code>1.2e-2 → e-02</code>）；angleBias 三行用 <code>%.18f</code> 定点；<code>width=</code> 后有一个空格，<code>lookAngleX:</code> 后有一个空格。</p>
+      </div>
+    </details>
+  </div>
+</footer>
+<div id="toast"></div>
+
+<script id="core">
+'use strict';
+/* ============ 核心：几何模型、系数生成、校验、TXT 读写（不依赖 DOM，可被 Node 自测加载） ============ */
+const VERSION = 'v1.0.260820-3';
+const DEG = Math.PI / 180;
+
+/* ---- C 风格格式化 ---- */
+function fmtE18(v){ /* %.18e：指数部分至少两位（e-02） */
+  if (v !== v) return 'nan';
+  if (v === 0) return '0.000000000000000000e+00';
+  const neg = v < 0 ? '-' : '';
+  const s = Math.abs(v).toExponential(18);
+  const ei = s.indexOf('e');
+  const mant = s.slice(0, ei);
+  const ex = s.slice(ei + 1);
+  const sign = ex.charAt(0);
+  const digits = ex.slice(1).padStart(2, '0');
+  return neg + mant + 'e' + sign + digits;
+}
+function fmtF18(v){ /* %.18f（本工具只用于 0） */
+  return v.toFixed(18);
+}
+
+/* ---- 显示用格式化 ---- */
+function fmtNum(v){
+  if (v == null || !isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 1e-4 || a >= 1e7)) return v.toExponential(3);
+  return String(parseFloat(v.toPrecision(5)));
+}
+function fmtM(v){ return v == null || !isFinite(v) ? '—' : fmtNum(v) + ' m'; }
+function fmtKm(v){
+  if (v == null || !isFinite(v)) return '—';
+  return v >= 10000 ? fmtNum(v / 1e3) + ' km' : fmtNum(v) + ' m';
+}
+function fmtDeg(v){ return v == null || !isFinite(v) ? '—' : fmtNum(v / DEG) + '°'; }
+function fmtUrad(v){ return v == null || !isFinite(v) ? '—' : fmtNum(v * 1e6) + ' μrad'; }
+
+/* ---- 光学 / 轨道闭包：GSD = p·H/f，缺谁补谁（SI：m） ---- */
+function resolveOptics(inp){
+  const out = {p: inp.p, f: inp.f, H: inp.H, GSD: inp.GSD, derived: []};
+  for (let r = 0; r < 3; r++){
+    if (out.GSD == null && out.p != null && out.f != null && out.H != null){
+      out.GSD = out.p * out.H / out.f; out.derived.push('GSD'); }
+    if (out.p == null && out.GSD != null && out.f != null && out.H != null){
+      out.p = out.GSD * out.f / out.H; out.derived.push('p'); }
+    if (out.f == null && out.GSD != null && out.p != null && out.H != null){
+      out.f = out.p * out.H / out.GSD; out.derived.push('f'); }
+    if (out.H == null && out.GSD != null && out.p != null && out.f != null){
+      out.H = out.GSD * out.f / out.p; out.derived.push('H'); }
+  }
+  return out;
+}
+
+/* ---- 几何与系数块生成 ----
+   cfg = {B,N,W,ovl, slope(p/f), layout:'colinear'|'staggered',
+          tanBands:[B 个 tanX]（共线）或 tanOdd/tanEven（交错）, order:'chip'|'band'} */
+function buildGeometry(cfg){
+  const err = [];
+  const B = cfg.B, N = cfg.N, W = cfg.W, ovl = cfg.ovl;
+  const isInt = v => Number.isInteger(v);
+  if (!isInt(B) || B < 1) err.push('波段数 B 须为正整数');
+  if (!isInt(N) || N < 1) err.push('每波段 CCD 片数 N 须为正整数');
+  if (!isInt(W) || W < 1) err.push('每片探元数 W 须为正整数');
+  if (!isInt(ovl) || ovl < 0 || ovl > W - 1) err.push('拼接重叠像元数 ovl 须为 0…W−1 的整数');
+  if (!(cfg.slope > 0)) err.push('像元角步长 p/f 不可用（焦距/探元尺寸未定）');
+  if (cfg.layout === 'colinear'){
+    if (!Array.isArray(cfg.tanBands) || cfg.tanBands.length !== B ||
+        !cfg.tanBands.every(t => isFinite(t)))
+      err.push('共线排列：各波段沿轨偏移未填全');
+  } else {
+    if (!isFinite(cfg.tanOdd) || !isFinite(cfg.tanEven))
+      err.push('交错排列：奇/偶片沿轨偏移未填全');
+  }
+  if (err.length) return {errors: err};
+
+  const s = cfg.slope;
+  const Vw = N * W - (N - 1) * ovl;
+  const halfSpan = Vw * s / 2;
+  const chipC0 = [];              // 第 i 片(1基) lookAngleY 常数项
+  for (let i = 0; i < N; i++) chipC0.push(halfSpan - i * (W - ovl) * s);
+
+  const tanXOf = (i, b) => cfg.layout === 'colinear' ? cfg.tanBands[b - 1]
+                   : (i % 2 === 1 ? cfg.tanOdd : cfg.tanEven);
+  const physical = [];
+  for (let i = 1; i <= N; i++)
+    for (let b = 1; b <= B; b++)
+      physical.push({i, b});
+  physical.sort(cfg.order === 'band'
+    ? (q, r) => q.b - r.b || q.i - r.i   // 波段优先：b 外层、i 内层
+    : (q, r) => q.i - r.i || q.b - r.b); // 片优先：i 外层、b 内层
+  const blocks = physical.map(({i, b}) => ({
+    kind: 'phys', width: W, i, b,
+    tanX: tanXOf(i, b), y0: chipC0[i - 1], slope: s,
+    label: `第${i}片·第${b}波段`,
+  }));
+
+  /* 虚拟片 lookAngleX：默认（virtualRule='minmax'）每片 CCD 在其各波段中取最大、
+     再在各片之间取最小——共线排列各片波段布置相同，即 tanX 最大的波段；
+     交错排列即奇/偶片中较小者。
+     virtualRule='min' 为全局最小（taijing304_MSS.coef 实例文件口径），
+     仅在共线排列下与默认取法不同。 */
+  let vTan, srcLabel;
+  if (cfg.layout === 'colinear'){
+    const pick = cfg.virtualRule === 'min'
+      ? Math.min.apply(null, cfg.tanBands) : Math.max.apply(null, cfg.tanBands);
+    vTan = pick;
+    const srcB = cfg.tanBands.indexOf(pick) + 1;
+    srcLabel = `波段${srcB}（各波段中 tanX ${cfg.virtualRule === 'min' ? '最小' : '最大'}）`;
+  } else {
+    vTan = Math.min(cfg.tanOdd, cfg.tanEven);
+    srcLabel = (cfg.tanOdd <= cfg.tanEven ? '奇数片' : '偶数片') + '（tanX 较小者）';
+  }
+  blocks.unshift({kind: 'virtual', width: Vw, i: 0, b: 0,
+    tanX: vTan, y0: halfSpan, slope: s,
+    label: `虚拟片（第0片，${srcLabel}）`});
+
+  return {errors: [], slope: s, Vw, halfSpan, chipC0, blocks, virtualSrc: srcLabel};
+}
+
+/* ---- .coef 文本（CRLF、无 BOM、%.18e / %.18f） ---- */
+function buildCoefText(B, N, polyN, blocks){
+  const L = [
+    `nCamPoly=${polyN}`,
+    `bandCount=${B}`,
+    `sensorCount=${N}`,
+    `angleBiasRoll=${fmtF18(0)}`,
+    `angleBiasPitch=${fmtF18(0)}`,
+    `angleBiasYaw=${fmtF18(0)}`,
+    'angleBiasR:' + [1,0,0,0,1,0,0,0,1].map(fmtE18).join(' '), // 实例文件冒号后无空格
+  ];
+  const xPoly = t => { const a = [fmtE18(t)]; for (let k = 1; k <= polyN; k++) a.push(fmtE18(0)); return a.join(' '); };
+  const yPoly = (c0, c1) => { const a = [fmtE18(c0), fmtE18(c1)]; for (let k = 2; k <= polyN; k++) a.push(fmtE18(0)); return a.join(' '); };
+  for (const q of blocks){
+    L.push(`width= ${q.width}`);
+    L.push('lookAngleX: ' + xPoly(q.tanX));
+    L.push('lookAngleY: ' + yPoly(q.y0, -q.slope)); // 一次项 = −p/f（探元序号增大 → tanY 减小）
+  }
+  return L.join('\r\n') + '\r\n';
+}
+
+/* ---- 一致性校验与物理约束 ----
+   opt = resolveOptics 结果；cfg 含 {B,N,W,ovl,polyN,layout,tol,R,order,offsetMissing:[波段号]} */
+function buildChecks(opt, geo, cfg){
+  const C = [];
+  const tol = cfg.tol;
+  // ① 探测器/格式参数
+  const bad = [];
+  if (!Number.isInteger(cfg.B) || cfg.B < 1) bad.push('B');
+  if (!Number.isInteger(cfg.N) || cfg.N < 1) bad.push('N');
+  if (!Number.isInteger(cfg.W) || cfg.W < 1) bad.push('W');
+  if (!Number.isInteger(cfg.ovl) || cfg.ovl < 0 || cfg.ovl > cfg.W - 1) bad.push('ovl');
+  if (!Number.isInteger(cfg.polyN) || cfg.polyN < 1 || cfg.polyN > 9) bad.push('nCamPoly');
+  if (bad.length)
+    C.push({name: '探测器/格式参数', status: 'bad', detail: '以下参数无效：' + bad.join('、') + '（须为正整数；ovl ∈ 0…W−1）'});
+  else
+    C.push({name: '探测器/格式参数', status: 'ok',
+      detail: `B=${cfg.B}、N=${cfg.N}、W=${cfg.W}、ovl=${cfg.ovl}、nCamPoly=${cfg.polyN}，块数 = 1+N×B = ${1 + cfg.N * cfg.B}`});
+  // ② 拼接搭接
+  if (Number.isInteger(cfg.ovl) && cfg.ovl >= 0 && Number.isInteger(cfg.W) && cfg.W > 1 && cfg.ovl <= cfg.W - 1){
+    const gnd = (opt.GSD != null && isFinite(opt.GSD)) ? `（地面 ${fmtM(cfg.ovl * opt.GSD)}）` : '';
+    C.push({name: '相邻片垂轨搭接', status: 'ok',
+      detail: cfg.ovl > 0 ? `搭接 ${cfg.ovl} 像元${gnd}；虚拟片宽 = N·W−(N−1)·ovl = ${cfg.N * cfg.W - (cfg.N - 1) * cfg.ovl}`
+                          : `零搭接（无缝拼接），虚拟片宽 = N·W = ${cfg.N * cfg.W}`});
+  }
+  // ③ GSD 恒等式
+  if (opt.p != null && opt.f != null && opt.H != null && opt.GSD != null &&
+      opt.derived.length === 0){
+    const exp = opt.p * opt.H / opt.f;
+    const rel = Math.abs(exp - opt.GSD) / Math.max(Math.abs(exp), Math.abs(opt.GSD), 1e-30);
+    C.push({name: 'GSD = p·H/f', status: rel <= tol ? 'ok' : 'bad',
+      detail: `公式值 ${fmtM(exp)} vs 输入 ${fmtM(opt.GSD)}，偏差 ${(rel * 100).toFixed(2)}%`});
+  } else if (opt.p != null && opt.f != null && opt.H == null && opt.GSD == null){
+    C.push({name: 'GSD = p·H/f', status: 'info', detail: '轨道高度与 GSD 均未给：跳过 GSD 校验与幅宽计算（系数生成不受影响）'});
+  } else if (opt.derived.length){
+    C.push({name: 'GSD = p·H/f', status: 'info', detail: '以下量由恒等式自动推导补全：' + opt.derived.join('、') + '（该恒等式不再重复校验）'});
+  } else if (opt.p == null || opt.f == null){
+    C.push({name: '焦距 / 探元尺寸', status: 'bad', detail: 'p 与 f 至少各有一种途径确定（直接输入或由 GSD·H 反推），否则无法生成系数'});
+  }
+  // ④ 偏移完整性
+  if (cfg.offsetMissing && cfg.offsetMissing.length)
+    C.push({name: '沿轨偏移完整性', status: 'bad',
+      detail: '以下偏移未填写：' + cfg.offsetMissing.join('、') + '（可填 d₁/Δd 后点「按 d₁+Δd 填充全部」）'});
+  // ⑤ 排列合理性
+  if (cfg.layout === 'staggered' && isFinite(cfg.tanOdd) && isFinite(cfg.tanEven)){
+    if (cfg.tanOdd === cfg.tanEven)
+      C.push({name: '交错排列奇偶错开', status: 'info', detail: '奇偶片偏移相同：等效共线排列，无交错效果'});
+    else
+      C.push({name: '交错排列奇偶错开', status: 'ok',
+        detail: `奇偶片 tanX 差 ${fmtNum(cfg.tanOdd - cfg.tanEven)}` +
+          (opt.H != null ? `，沿轨地面错位 ${fmtM(Math.abs(cfg.tanOdd - cfg.tanEven) * opt.H)}` : '')});
+  }
+  if (cfg.layout === 'colinear' && Array.isArray(cfg.tanBands) && cfg.tanBands.every(isFinite)){
+    const dup = [];
+    for (let b = 0; b < cfg.tanBands.length; b++)
+      if (cfg.tanBands.indexOf(cfg.tanBands[b]) !== b) dup.push(b + 1);
+    if (dup.length)
+      C.push({name: '共线排列波段错开', status: 'info', detail: '波段 ' + [...new Set(dup)].join('、') + ' 的偏移与前面波段相同（视线重合）'});
+    else
+      C.push({name: '共线排列波段错开', status: 'ok', detail: `各波段沿轨偏移互不相同；虚拟片取自${geo ? geo.virtualSrc : ''}`});
+  }
+  // ⑥ 边缘视线在地平线内
+  if (geo && opt.H != null && cfg.R != null && cfg.R > 0){
+    const edge = Math.atan(geo.halfSpan);
+    const horizon = Math.asin(cfg.R / (cfg.R + opt.H));
+    C.push({name: '边缘离轴角 ≤ 地平线角', status: edge <= horizon ? 'ok' : 'bad',
+      detail: `边缘离轴角 ${fmtDeg(edge)} ${edge <= horizon ? '≤' : '>'} 地平线角 ${fmtDeg(horizon)}（arcsin(R/(R+H))）`});
+  }
+  return C;
+}
+
+/* ---- 推导汇总 ---- */
+function buildDerived(opt, geo, cfg){
+  const R = [];
+  if (geo){
+    R.push(['像元角步长 p/f（lookAngleY 一次项）', fmtUrad(geo.slope)]);
+    R.push(['虚拟片宽度 = N·W−(N−1)·ovl', geo.Vw + ' 像元']);
+    R.push(['半视场角（边缘离轴角）= atan(半跨度)', fmtDeg(Math.atan(geo.halfSpan))]);
+    R.push(['全视场角 TFOV = 2·atan(半跨度)', fmtDeg(2 * Math.atan(geo.halfSpan))]);
+    R.push(['每片垂轨角跨度 = W·p/f', fmtDeg(cfg.W * geo.slope)]);
+    if (opt.GSD != null){
+      R.push(['星下点 GSD（平面）= p·H/f', fmtM(opt.GSD)]);
+      R.push(['幅宽（平面）= 虚拟片宽 × GSD', fmtKm(geo.Vw * opt.GSD)]);
+      R.push(['相邻片搭接地面距离 = ovl×GSD', fmtM(cfg.ovl * opt.GSD)]);
+      R.push(['边缘穿轨采样间距（平面）= H·(p/f)·(1+tan²边缘)',
+        fmtM(opt.H != null ? opt.H * geo.slope * (1 + geo.halfSpan * geo.halfSpan) : NaN)]);
+    }
+  }
+  return R;
+}
+
+/* ============ 参数文本文件（TXT）读写 ============
+   行格式：参数ID = 数值 [单位]。带单位按该单位换算；无单位按该参数默认单位。
+   元参数行：layout / offsetMode / blockOrder / tolerance / filename。
+   dbN 为共线排列第 N 波段偏移（单位随 offsetMode）。# 开头与行内 # 之后为注释。 */
+const TXT_DIST = [['mm', 1e-3], ['μm', 1e-6], ['cm', 1e-2], ['m', 1], ['km', 1e3]];
+const TXT_ANG  = [['°', DEG], ['mrad', 1e-3], ['rad', 1]];
+const TXT_PARAMS = {
+  B:{name:'波段数', int:1}, N:{name:'每波段片数', int:1}, W:{name:'每片探元数', int:1},
+  ovl:{name:'拼接重叠像元数', int:1}, polyN:{name:'nCamPoly', int:1},
+  f:{name:'焦距', u:TXT_DIST, du:0}, p:{name:'探元尺寸', u:TXT_DIST, du:0},
+  H:{name:'轨道高度', u:TXT_DIST, du:4}, GSD:{name:'GSD', u:TXT_DIST, du:3},
+  R:{name:'地球半径', u:TXT_DIST, du:4},
+  d1:{name:'波段1偏移', off:1}, dd:{name:'波段间距', off:1},
+  dOdd:{name:'奇数片偏移', off:1}, dEven:{name:'偶数片偏移', off:1},
+};
+
+function parseParamText(text){
+  const res = {values: {}, db: [], meta: {}, warnings: []};
+  let s = String(text == null ? '' : text);
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+  const lines = s.split(/\r?\n/);
+  const offAng = () => { // 两遍：先扫元参数确定偏移字段的单位类型
+    for (const ln of lines){
+      const m = ln.split('#')[0].trim().match(/^offsetMode\s*=\s*(\S+)$/);
+      if (m) return m[1] === 'angle';
+    }
+    return false;
+  };
+  const angMode = offAng();
+  for (let i = 0; i < lines.length; i++){
+    const body = lines[i].split('#')[0].trim();
+    if (!body) continue;
+    const m = body.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
+    if (!m){ res.warnings.push(`第 ${i+1} 行无法解析，已忽略：${body}`); continue; }
+    const key = m[1], rhs = m[2].trim();
+    if (key === 'layout'){
+      if (rhs === 'colinear' || rhs === 'staggered') res.meta.layout = rhs;
+      else res.warnings.push(`第 ${i+1} 行 layout 取值无效（colinear/staggered）：${rhs}`);
+      continue;
+    }
+    if (key === 'offsetMode'){
+      if (rhs === 'dist' || rhs === 'angle') res.meta.offsetMode = rhs;
+      else res.warnings.push(`第 ${i+1} 行 offsetMode 取值无效（dist/angle）：${rhs}`);
+      continue;
+    }
+    if (key === 'blockOrder'){
+      if (rhs === 'chip' || rhs === 'band') res.meta.blockOrder = rhs;
+      else res.warnings.push(`第 ${i+1} 行 blockOrder 取值无效（chip/band）：${rhs}`);
+      continue;
+    }
+    if (key === 'virtualRule'){
+      if (rhs === 'minmax' || rhs === 'min') res.meta.virtualRule = rhs;
+      else res.warnings.push(`第 ${i+1} 行 virtualRule 取值无效（minmax/min）：${rhs}`);
+      continue;
+    }
+    if (key === 'tolerance' || key === 'tol'){
+      const t = parseFloat(rhs);
+      if (isFinite(t) && t > 0 && t <= 1) res.meta.tol = t;
+      else res.warnings.push(`第 ${i+1} 行 tolerance 取值无效：${rhs}`);
+      continue;
+    }
+    if (key === 'filename'){
+      res.meta.filename = rhs.replace(/^"|"$/g, '');
+      continue;
+    }
+    const dbm = key.match(/^db(\d+)$/);
+    if (dbm){
+      const v = parseFloat(rhs);
+      if (!isFinite(v)){ res.warnings.push(`第 ${i+1} 行数值无法识别：${body}`); continue; }
+      const ulist = angMode ? TXT_ANG : TXT_DIST;
+      const um = rhs.match(/^(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(\S*)$/);
+      let factor = ulist[0][1], uname = ulist[0][0];
+      if (um && um[2]){
+        const u = ulist.find(q => q[0] === um[2]);
+        if (!u){ res.warnings.push(`第 ${i+1} 行单位 "${um[2]}" 不适用：${body}`); continue; }
+        factor = u[1]; uname = u[0];
+      }
+      res.db.push({idx: +dbm[1], value: v * factor, unit: uname});
+      continue;
+    }
+    const P = TXT_PARAMS[key];
+    if (!P){ res.warnings.push(`第 ${i+1} 行未知参数，已忽略：${key}`); continue; }
+    const vm = rhs.match(/^(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(\S*)$/);
+    if (!vm || !isFinite(parseFloat(vm[1]))){
+      res.warnings.push(`第 ${i+1} 行数值无法识别，已忽略：${body}`); continue;
+    }
+    const num = parseFloat(vm[1]);
+    if (P.int){ res.values[key] = num; continue; }
+    const ulist = P.off ? (angMode ? TXT_ANG : TXT_DIST) : P.u;
+    if (vm[2]){
+      const u = ulist.find(q => q[0] === vm[2]);
+      if (!u){ res.warnings.push(`第 ${i+1} 行单位 "${vm[2]}" 不适用于 ${key}，该行已忽略`); continue; }
+      res.values[key] = num * u[1];
+    } else {
+      res.values[key] = num * ulist[0][1]; // 无单位 = 该参数默认单位
+    }
+  }
+  return res;
+}
+
+function fmtFull(v){ // 文件读写用：12 位有效数字避免往返失真
+  if (v == null || !isFinite(v)) return '';
+  return String(parseFloat(v.toPrecision(12)));
+}
+
+function paramsToText(state){ // state：{values(SI 或整数), db:[{idx,value(SI)}], meta}
+  const now = new Date(), pad = n => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const angMode = state.meta.offsetMode === 'angle';
+  const L = [
+    '# 线阵推扫相机参数文件（pushbroom.html）',
+    `# 工具版本: ${VERSION}    保存时间: ${stamp}`,
+    '# 行格式: 参数ID = 数值 [单位]；偏移字段单位随 offsetMode；# 开头与行内 # 之后为注释',
+    '',
+    `layout = ${state.meta.layout || 'colinear'} # colinear 共线 / staggered 交错`,
+    `offsetMode = ${state.meta.offsetMode || 'dist'} # dist 焦面距离 / angle 离轴角`,
+    `blockOrder = ${state.meta.blockOrder || 'chip'} # chip 片优先 / band 波段优先`,
+    `virtualRule = ${state.meta.virtualRule || 'minmax'} # minmax 片内最大→片间最小 / min 全局最小`,
+    `tolerance = ${state.meta.tol != null ? state.meta.tol : 0.02}`,
+    state.meta.filename ? `filename = ${state.meta.filename}` : '',
+  ];
+  for (const k of ['B','N','W','ovl','polyN'])
+    if (state.values[k] != null) L.push(`${k} = ${state.values[k]}`);
+  for (const k of ['f','p','H','GSD','R'])
+    if (state.values[k] != null){
+      const u = TXT_PARAMS[k].u[TXT_PARAMS[k].du];
+      L.push(`${k} = ${fmtFull(state.values[k] / u[1])} ${u[0]}`);
+    }
+  const offU = (angMode ? TXT_ANG : TXT_DIST)[0];
+  for (const k of ['d1','dd','dOdd','dEven'])
+    if (state.values[k] != null) L.push(`${k} = ${fmtFull(state.values[k] / offU[1])} ${offU[0]}`);
+  for (const d of (state.db || []))
+    L.push(`db${d.idx} = ${fmtFull(d.value / offU[1])} ${offU[0]}`);
+  return L.filter(x => x !== '').join('\r\n') + '\r\n';
+}
+
+if (typeof module !== 'undefined' && module.exports){
+  module.exports = {VERSION, DEG, fmtE18, fmtF18, fmtNum, fmtM, fmtKm, fmtDeg, fmtUrad,
+                    resolveOptics, buildGeometry, buildCoefText, buildChecks, buildDerived,
+                    TXT_PARAMS, parseParamText, paramsToText, fmtFull};
+}
+</script>
+
+<script>
+'use strict';
+/* ============ DOM：表单、事件、渲染 ============ */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+$('#ver').textContent = VERSION;
+
+const OFF_UNITS = {dist: [['mm', 1e-3], ['μm', 1e-6]], angle: [['°', DEG], ['mrad', 1e-3]]};
+
+const state = {
+  tol: 0.02,
+  layout: 'colinear',   // colinear / staggered
+  offmode: 'dist',      // dist / angle
+  offUnit: 0,           // 当前偏移单位组内索引
+  order: 'chip',        // chip / band
+  virtualRule: 'minmax',// minmax 片内最大→片间最小 / min 全局最小
+  bandD: [],            // [{v:'原始串', ov:是否手工改过}]
+};
+let coreOut = {opt: null, geo: null, text: ''};
+
+/* ---------- 偏移单位 / 模式 ---------- */
+function renderOffUnitSel(){
+  const us = OFF_UNITS[state.offmode];
+  state.offUnit = Math.min(state.offUnit, us.length - 1);
+  const d = $('#offUnitDist'), a = $('#offUnitAngle');
+  d.value = String(state.offUnit);   // 两列单位组索引一一对应：0↔0（mm↔°）、1↔1（μm↔mrad）
+  a.value = String(state.offUnit);
+  d.disabled = state.offmode !== 'dist';
+  a.disabled = state.offmode !== 'angle';
+}
+function offFactor(){ return OFF_UNITS[state.offmode][state.offUnit][1]; }
+
+function setOffMode(mode){
+  if (mode === state.offmode) return;
+  const f = coreOut.opt && coreOut.opt.f;
+  if (!f){
+    toast('切换偏移输入方式需要焦距 f（用于距离↔角度换算），请先填写焦距', true);
+    $$('input[name=offmode]').forEach(r => r.checked = r.value === state.offmode);
+    return;
+  }
+  const oldF = offFactor();            // 旧单位因子（m 或 rad）
+  state.offmode = mode; renderOffUnitSel();
+  const newF = offFactor();
+  const cv = raw => {                  // 输入框数值（旧单位）→ 新单位数值
+    const v = parseFloat(raw);
+    if (raw.trim() === '' || !isFinite(v)) return raw.trim() === '' ? '' : null;
+    let si = v * oldF;
+    si = mode === 'angle' ? Math.atan(si / f) : f * Math.tan(si);
+    return String(parseFloat((si / newF).toPrecision(6)));
+  };
+  for (const id of ['in_d1', 'in_dd', 'in_dOdd', 'in_dEven']){
+    const el = $(('#' + id));
+    const nv = cv(el.value);
+    if (nv !== null) el.value = nv;
+  }
+  state.bandD.forEach((d, b) => {
+    const nv = cv(d.v);
+    if (nv !== null){ d.v = nv; const el = $('#bd_' + (b + 1)); if (el) el.value = nv; }
+  });
+  recalc();
+}
+function offUnitChange(newU){
+  const fOld = OFF_UNITS[state.offmode][state.offUnit][1];
+  const fNew = OFF_UNITS[state.offmode][newU][1];
+  const cv = v => v * fOld / fNew;
+  state.bandD.forEach(d => { if (d.v !== '' && isFinite(parseFloat(d.v))) d.v = String(parseFloat(cv(parseFloat(d.v)).toPrecision(6))); });
+  for (const id of ['in_d1', 'in_dd', 'in_dOdd', 'in_dEven']){
+    const el = $(('#' + id));
+    if (el.value.trim() !== '' && isFinite(parseFloat(el.value)))
+      el.value = String(parseFloat(cv(parseFloat(el.value)).toPrecision(6)));
+  }
+  state.offUnit = newU;
+  renderOffUnitSel();
+  recalc();
+}
+
+/* ---------- 共线排列：每波段一行 ---------- */
+function buildBandRows(){
+  const B = parseInt($('#in_B').value, 10);
+  const box = $('#bandRows');
+  const old = state.bandD.slice();
+  const n = (Number.isInteger(B) && B > 0) ? Math.min(B, 40) : 0;
+  state.bandD = [];
+  const d1 = parseFloat($('#in_d1').value), dd = parseFloat($('#in_dd').value);
+  const quickOK = el => el.value.trim() !== '' && isFinite(parseFloat(el.value));
+  for (let b = 0; b < n; b++){
+    let v = (old[b] && old[b].v) || '';
+    let ov = (old[b] && old[b].ov) || false;
+    if (v === '' && quickOK($('#in_d1')) && quickOK($('#in_dd'))){
+      v = String(parseFloat((d1 + b * dd).toPrecision(8))); ov = false; // 新行按 d1+Δd 补
+    }
+    state.bandD.push({v, ov});
+  }
+  let h = '';
+  for (let b = 0; b < n; b++){
+    h += `<div class="prow"><div class="plabel">波段 ${b + 1} 沿轨偏移</div>
+      <div class="pctl"><input id="bd_${b + 1}" type="number" step="any" value="${state.bandD[b].v}"></div>
+      <div class="pnote"></div><div class="derived" id="bdv_${b + 1}"></div></div>`;
+  }
+  box.innerHTML = h;
+  for (let b = 1; b <= n; b++){
+    $('#bd_' + b).addEventListener('input', e => {
+      state.bandD[b - 1] = {v: e.target.value, ov: true};
+      recalc();
+    });
+  }
+}
+/* d1/Δd 变更：刷新未手工改过的行 */
+function refreshAutoRows(){
+  const d1 = parseFloat($('#in_d1').value), dd = parseFloat($('#in_dd').value);
+  const ok = $('#in_d1').value.trim() !== '' && isFinite(d1) &&
+             $('#in_dd').value.trim() !== '' && isFinite(dd);
+  state.bandD.forEach((d, b) => {
+    if (!d.ov && ok) d.v = String(parseFloat((d1 + b * dd).toPrecision(8)));
+    const el = $('#bd_' + (b + 1));
+    if (el) el.value = d.v;
+  });
+}
+$('#btnFill').addEventListener('click', () => {
+  const d1 = parseFloat($('#in_d1').value), dd = parseFloat($('#in_dd').value);
+  if (!isFinite(d1) || !isFinite(dd)){ toast('请先填写 d₁ 与 Δd', true); return; }
+  state.bandD.forEach((d, b) => { d.v = String(parseFloat((d1 + b * dd).toPrecision(8))); d.ov = false;
+    const el = $('#bd_' + (b + 1)); if (el) el.value = d.v; });
+  recalc();
+});
+
+/* ---------- 收集与计算 ---------- */
+function numVal(id, unitId){
+  const el = $(('#' + id));
+  const v = parseFloat(el.value);
+  if (el.value.trim() === '' || !isFinite(v)) return null;
+  if (!unitId) return v;
+  const u = $('#' + unitId).value;
+  const F = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  return v * F[u];
+}
+function tanOfOff(rawSI){ // 偏移 SI 值（m 或 rad）→ tanX
+  if (rawSI == null || !isFinite(rawSI)) return NaN;
+  return state.offmode === 'dist' ? rawSI / coreOut.opt.f : Math.tan(rawSI);
+}
+
+function recalc(){
+  const B = parseInt($('#in_B').value, 10);
+  const N = parseInt($('#in_N').value, 10);
+  const W = parseInt($('#in_W').value, 10);
+  const ovl = parseInt($('#in_ovl').value, 10);
+  const polyN = parseInt($('#in_polyN').value, 10);
+  const R = numVal('in_R', 'un_R');
+
+  const opt = resolveOptics({f: numVal('in_f', 'un_f'), p: numVal('in_p', 'un_p'),
+                             H: numVal('in_H', 'un_H'), GSD: numVal('in_GSD', 'un_GSD')});
+  const slope = (opt.p != null && opt.f != null && opt.f > 0) ? opt.p / opt.f : null;
+  coreOut.opt = opt;
+
+  // 偏移 → tanX
+  let tanBands = null, tanOdd = NaN, tanEven = NaN, offsetMissing = [];
+  if (state.layout === 'colinear'){
+    tanBands = [];
+    for (let b = 0; b < (Number.isInteger(B) ? B : 0); b++){
+      const raw = state.bandD[b] ? parseFloat(state.bandD[b].v) : NaN;
+      const si = isFinite(raw) ? raw * offFactor() : NaN;
+      const t = isFinite(si) ? tanOfOff(si) : NaN;
+      tanBands.push(t);
+      if (!isFinite(t)) offsetMissing.push(`波段${b + 1}`);
+    }
+  } else {
+    const o = numVal('in_dOdd'), e = numVal('in_dEven');
+    tanOdd = (o != null) ? tanOfOff(o * offFactor()) : NaN;
+    tanEven = (e != null) ? tanOfOff(e * offFactor()) : NaN;
+    if (!isFinite(tanOdd)) offsetMissing.push('奇数片偏移');
+    if (!isFinite(tanEven)) offsetMissing.push('偶数片偏移');
+  }
+
+  let geo = null, text = '', geoErrs = [];
+  if (slope != null){
+    const g = buildGeometry({B: Number.isInteger(B) ? B : 0,
+      N: Number.isInteger(N) ? N : 0, W: Number.isInteger(W) ? W : 0,
+      ovl: Number.isInteger(ovl) ? ovl : -1, slope,
+      layout: state.layout,
+      tanBands: state.layout === 'colinear' ? tanBands : null,
+      tanOdd, tanEven, order: state.order, virtualRule: state.virtualRule});
+    geoErrs = g.errors;
+    if (!geoErrs.length && !(Number.isInteger(polyN) && polyN >= 1 && polyN <= 9))
+      geoErrs.push('多项式阶数 nCamPoly 须为 1…9 的整数');
+    if (!geoErrs.length){
+      geo = g;
+      text = buildCoefText(B, N, polyN, geo.blocks);
+    }
+  }
+
+  const cfg = {B, N, W, ovl, polyN, layout: state.layout, tol: state.tol, R,
+               offsetMissing, tanBands, tanOdd, tanEven, order: state.order};
+  const checks = buildChecks(opt, geo, cfg);
+  if (geoErrs.length)
+    checks.unshift({name: '系数生成前置条件', status: 'bad', detail: geoErrs.join('；')});
+  coreOut.geo = geo; coreOut.text = text;
+
+  renderDerived(opt, geo, tanBands, tanOdd, tanEven);
+  renderSum(opt, geo, cfg);
+  renderChecks(checks);
+  renderLay(opt, geo, cfg, tanBands);
+  renderPreview(text, geo, cfg);
+  renderBanner(checks);
+  save();
+}
+
+/* ---------- 渲染 ---------- */
+function renderDerived(opt, geo, tanBands, tanOdd, tanEven){
+  const d = (id, v, unit) => { const el = $(('#' + id));
+    el.textContent = (v == null) ? '' : '≈ ' + fmtNum(v / unit[1]) + ' ' + unit[0] + '（推导）'; };
+  const FU = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  d('dv_f', opt.f && opt.derived.includes('f') ? opt.f : null, [$('#un_f').value, FU[$('#un_f').value]]);
+  d('dv_p', opt.p && opt.derived.includes('p') ? opt.p : null, [$('#un_p').value, FU[$('#un_p').value]]);
+  d('dv_H', opt.H && opt.derived.includes('H') ? opt.H : null, [$('#un_H').value, FU[$('#un_H').value]]);
+  d('dv_GSD', opt.GSD && opt.derived.includes('GSD') ? opt.GSD : null, [$('#un_GSD').value, FU[$('#un_GSD').value]]);
+  const vw = $('#dv_Vw');
+  if (geo) vw.textContent = `虚拟片宽 = ${geo.Vw} 像元`;
+  else vw.textContent = '';
+  // 偏移行下的 tanX 提示
+  if (state.layout === 'colinear' && Array.isArray(tanBands))
+    for (let b = 0; b < tanBands.length; b++){
+      const el = $('#bdv_' + (b + 1));
+      if (el) el.textContent = isFinite(tanBands[b]) ? 'tanX = ' + fmtNum(tanBands[b]) +
+        '，离轴角 ' + fmtDeg(Math.atan(tanBands[b])) : '';
+    }
+  if (state.layout === 'staggered'){
+    $('#dv_dOdd').textContent = isFinite(tanOdd) ? 'tanX = ' + fmtNum(tanOdd) : '';
+    $('#dv_dEven').textContent = isFinite(tanEven) ? 'tanX = ' + fmtNum(tanEven) : '';
+  }
+}
+
+function renderSum(opt, geo, cfg){
+  const rows = buildDerived(opt, geo, cfg);
+  let h = '<table>';
+  for (const r of rows) h += `<tr><td>${r[0]}</td><td class="v">${r[1]}</td></tr>`;
+  $('#tblSum').innerHTML = h + '</table>';
+}
+
+function renderChecks(checks){
+  const icon = {ok: '✓', bad: '✗', info: '⚠'};
+  $('#lstChk').innerHTML = checks.length ? checks.map(c =>
+    `<div class="item ${c.status}"><span class="st">${icon[c.status]}</span>
+     <span class="nm">${c.name}</span><span class="dt">${c.detail}</span></div>`).join('')
+    : '<div class="item info"><span class="st">ℹ</span><span class="dt">参数不足</span></div>';
+}
+
+function renderLay(opt, geo, cfg, tanBands){
+  let h = '';
+  if (state.layout === 'colinear' && Array.isArray(tanBands) && tanBands.length){
+    const tmin = Math.min(...tanBands.filter(isFinite).concat([Infinity]));
+    h += '<table><tr class="grprow"><td colspan="4">共线排列 · 各波段沿轨布置</td></tr>' +
+      '<tr><th>波段</th><th>tanX</th><th>沿轨离轴角</th><th>相对最前波段沿轨地面基线</th></tr>';
+    for (let b = 0; b < tanBands.length; b++){
+      const t = tanBands[b];
+      h += `<tr><td>波段 ${b + 1}${geo && geo.blocks[0] && t === geo.blocks[0].tanX ? ' ←虚拟片来源' : ''}</td>
+        <td class="v">${isFinite(t) ? fmtNum(t) : '—'}</td>
+        <td class="v">${isFinite(t) ? fmtDeg(Math.atan(t)) : '—'}</td>
+        <td class="v">${(isFinite(t) && isFinite(tmin) && opt.H != null) ? fmtM((t - tmin) * opt.H) : '—'}</td></tr>`;
+    }
+    h += '</table>';
+  }
+  if (state.layout === 'staggered'){
+    const o = parseFloat($('#in_dOdd').value), e = parseFloat($('#in_dEven').value);
+    const tO = isFinite(o) ? tanOfOff(o * offFactor()) : NaN, tE = isFinite(e) ? tanOfOff(e * offFactor()) : NaN;
+    h += '<table><tr class="grprow"><td colspan="4">交错排列 · 奇偶片沿轨布置</td></tr>' +
+      '<tr><th>片组</th><th>tanX</th><th>沿轨离轴角</th><th>奇偶沿轨地面错位</th></tr>' +
+      `<tr><td>奇数片（1,3,5…）</td><td class="v">${isFinite(tO) ? fmtNum(tO) : '—'}</td><td class="v">${isFinite(tO) ? fmtDeg(Math.atan(tO)) : '—'}</td>` +
+      `<td class="v" rowspan="2">${(isFinite(tO) && isFinite(tE) && opt.H != null) ? fmtM(Math.abs(tO - tE) * opt.H) : '—'}</td></tr>` +
+      `<tr><td>偶数片（2,4,6…）</td><td class="v">${isFinite(tE) ? fmtNum(tE) : '—'}</td><td class="v">${isFinite(tE) ? fmtDeg(Math.atan(tE)) : '—'}</td></tr></table>`;
+  }
+  if (geo){
+    h += '<table><tr class="grprow"><td colspan="4">各片垂轨布置（整线关于主点居中）</td></tr>' +
+      '<tr><th>片号</th><th>det0 切角 tanY</th><th>末探元 tanY</th><th>垂轨角范围</th></tr>';
+    for (let i = 0; i < geo.chipC0.length; i++){
+      const c0 = geo.chipC0[i], cN = c0 - (cfg.W - 1) * geo.slope;
+      h += `<tr><td>第 ${i + 1} 片</td><td class="v">${fmtNum(c0)}</td><td class="v">${fmtNum(cN)}</td>
+        <td class="v">${fmtDeg(Math.atan(cN))} ~ ${fmtDeg(Math.atan(c0))}</td></tr>`;
+    }
+    h += '</table>';
+  }
+  $('#tblLay').innerHTML = h || '<div class="item info"><span class="st">ℹ</span><span class="dt">参数不足</span></div>';
+}
+
+function renderPreview(text, geo, cfg){
+  const pre = $('#coefPre'), lg = $('#legend'), btn = $('#btnSave');
+  if (text){
+    pre.textContent = text;
+    const nBlk = 1 + cfg.N * cfg.B;
+    const orderTxt = state.order === 'chip' ? '第1片·各波段 → 第2片·各波段 → …' : '第1波段·各片 → 第2波段·各片 → …';
+    lg.innerHTML = `块顺序（${state.order === 'chip' ? '片优先' : '波段优先'}）：虚拟片 → ${orderTxt}，共 <b>${nBlk}</b> 块；` +
+      `字节数 <b>${text.length}</b>（ASCII、CRLF、无 BOM）${geo ? '；虚拟片来源：' + geo.virtualSrc : ''}`;
+    btn.disabled = false;
+  } else {
+    pre.textContent = '（参数不足或存在错误，暂不能生成文件——见「一致性校验与物理约束」）';
+    lg.textContent = '';
+    btn.disabled = true;
+  }
+}
+
+function renderBanner(checks){
+  const b = $('#banner');
+  const nBad = checks.filter(c => c.status === 'bad').length;
+  const nInfo = checks.filter(c => c.status === 'info').length;
+  const anyInput = ['in_f', 'in_p', 'in_H', 'in_GSD', 'in_d1', 'in_dOdd'].some(id => $(('#' + id)).value.trim() !== '');
+  if (!anyInput){ b.className = ''; b.textContent = '请输入参数（左栏留空项将自动推导）……'; return; }
+  if (nBad){ b.className = 'bad'; b.textContent = `发现 ${nBad} 处问题，详见下方；文件暂不生成`; }
+  else { b.className = 'ok'; b.textContent = `参数自洽：${checks.length - nBad - nInfo} 项通过，${nInfo} 项提示；文件可保存`; }
+}
+
+/* ---------- .coef 下载 ---------- */
+$('#btnSave').addEventListener('click', () => {
+  if (!coreOut.text){ toast('当前无法生成 .coef 文件', true); return; }
+  let name = ($('#fnameEcho').value || 'pushbroom.coef').trim() || 'pushbroom.coef';
+  if (!/\.coef$/i.test(name)) name += '.coef';
+  const blob = new Blob([coreOut.text], {type: 'application/octet-stream'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('已保存 ' + name + '（' + coreOut.text.length + ' 字节，CRLF、无 BOM）');
+});
+
+/* ---------- 参数 TXT 读写 ---------- */
+function collectTxt(){
+  const values = {
+    B: parseInt($('#in_B').value, 10) || null,
+    N: parseInt($('#in_N').value, 10) || null,
+    W: parseInt($('#in_W').value, 10) || null,
+    ovl: parseInt($('#in_ovl').value, 10),
+    polyN: parseInt($('#in_polyN').value, 10) || null,
+  };
+  if (values.ovl == null || !Number.isInteger(values.ovl)) delete values.ovl;
+  // SI 收集（带各自单位选择）
+  const FU = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  for (const [k, id, un] of [['f','in_f','un_f'],['p','in_p','un_p'],['H','in_H','un_H'],
+                             ['GSD','in_GSD','un_GSD'],['R','in_R','un_R']]){
+    const el = $(('#' + id)); const v = parseFloat(el.value);
+    if (el.value.trim() !== '' && isFinite(v)) values[k] = v * FU[$('#' + un).value];
+  }
+  for (const [k, id] of [['d1','in_d1'],['dd','in_dd'],['dOdd','in_dOdd'],['dEven','in_dEven']]){
+    const el = $(('#' + id)); const v = parseFloat(el.value);
+    if (el.value.trim() !== '' && isFinite(v)) values[k] = v * offFactor();
+  }
+  const db = [];
+  state.bandD.forEach((d, b) => {
+    const v = parseFloat(d.v);
+    if (d.v !== '' && isFinite(v)) db.push({idx: b + 1, value: v * offFactor()});
+  });
+  return {values, db, meta: {layout: state.layout, offsetMode: state.offmode,
+    blockOrder: state.order, virtualRule: state.virtualRule,
+    tol: state.tol, filename: $('#fnameEcho').value.trim()}};
+}
+$('#btnExportTxt').addEventListener('click', () => {
+  const t = collectTxt();
+  const cnt = Object.keys(t.values).length + t.db.length;
+  if (!cnt){ toast('当前没有输入任何参数，无内容可保存', true); return; }
+  const ts = new Date(), pad = x => String(x).padStart(2, '0');
+  const fname = 'pushbroom_params_' + ts.getFullYear() + pad(ts.getMonth() + 1) + pad(ts.getDate())
+    + '-' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds()) + '.txt';
+  const blob = new Blob([String.fromCharCode(0xFEFF) + paramsToText(t)], {type: 'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('已保存 ' + fname + '（' + cnt + ' 个输入参数，UTF-8 带 BOM）');
+});
+$('#btnImportTxt').addEventListener('click', () => $('#fileTxt').click());
+$('#fileTxt').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let text;
+  try{ text = await file.text(); }
+  catch(err){ toast('读取文件失败：' + err.message, true); return; }
+  const r = parseParamText(text);
+  const v = r.values, meta = r.meta;
+  const setNum = (id, val, un) => {
+    const el = $(('#' + id));
+    if (un) el.value = val != null ? fmtFull(val) : '';
+    else el.value = val != null ? String(val) : '';
+  };
+  if (v.B != null) $('#in_B').value = v.B;
+  if (v.N != null) $('#in_N').value = v.N;
+  if (v.W != null) $('#in_W').value = v.W;
+  if (v.ovl != null) $('#in_ovl').value = v.ovl;
+  if (v.polyN != null) $('#in_polyN').value = v.polyN;
+  const FU = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  const setSI = (id, un, val) => {
+    const el = $(('#' + id));
+    el.value = val != null ? fmtFull(val / FU[$('#' + un).value]) : '';
+  };
+  setSI('in_f', 'un_f', v.f); setSI('in_p', 'un_p', v.p);
+  setSI('in_H', 'un_H', v.H); setSI('in_GSD', 'un_GSD', v.GSD); setSI('in_R', 'un_R', v.R);
+  if (meta.offsetMode && meta.offsetMode !== state.offmode){
+    // 先切单位制但不换算（文件里的数值本来就是该单位制下的）
+    state.offmode = meta.offsetMode;
+    $$('input[name=offmode]').forEach(x => x.checked = x.value === state.offmode);
+  }
+  renderOffUnitSel();
+  if (meta.layout){ state.layout = meta.layout;
+    $$('input[name=layout]').forEach(x => x.checked = x.value === state.layout); }
+  if (meta.blockOrder){ state.order = meta.blockOrder; $('#orderSel').value = state.order; }
+  if (meta.virtualRule){ state.virtualRule = meta.virtualRule; $('#vruleSel').value = meta.virtualRule; }
+  const setOff = (id, val) => { const el = $(('#' + id)); el.value = val != null ? fmtFull(val / offFactor()) : ''; };
+  setOff('in_d1', v.d1); setOff('in_dd', v.dd);
+  setOff('in_dOdd', v.dOdd); setOff('in_dEven', v.dEven);
+  buildBandRows();
+  if (r.db.length){
+    const map = {}; r.db.forEach(d => map[d.idx] = d.value / offFactor());
+    state.bandD.forEach((d, b) => {
+      if (map[b + 1] != null) d.v = fmtFull(map[b + 1]);
+      const el = $('#bd_' + (b + 1)); if (el && map[b + 1] != null) el.value = d.v;
+    });
+  }
+  if (meta.tol != null){
+    const sel = $('#tolSel');
+    sel.value = String(meta.tol);
+    if (sel.value === ''){
+      let best = sel.options[0];
+      for (const o of sel.options) if (Math.abs(+o.value - meta.tol) < Math.abs(+best.value - meta.tol)) best = o;
+      sel.value = best.value;
+    }
+    state.tol = +sel.value;
+  }
+  if (meta.filename){ $('#fnameEcho').value = meta.filename; }
+  toggleLayout();
+  recalc();
+  const cnt = Object.keys(v).length + r.db.length;
+  toast('已从 ' + file.name + ' 读取 ' + cnt + ' 个参数' +
+    (r.warnings.length ? '；' + r.warnings.length + ' 行被忽略，首个：' + r.warnings[0] : ''),
+    r.warnings.length > 0);
+});
+
+/* ---------- 布局切换 / 事件 ---------- */
+function toggleLayout(){
+  $('#colinBox').style.display = state.layout === 'colinear' ? '' : 'none';
+  $('#stagBox').style.display = state.layout === 'staggered' ? '' : 'none';
+}
+$$('input[name=layout]').forEach(r => r.addEventListener('change', e => {
+  state.layout = e.target.value; toggleLayout(); recalc();
+}));
+$$('input[name=offmode]').forEach(r => r.addEventListener('change', e => setOffMode(e.target.value)));
+$('#offUnitDist').addEventListener('change', e => offUnitChange(+e.target.value));
+$('#offUnitAngle').addEventListener('change', e => offUnitChange(+e.target.value));
+$('#orderSel').addEventListener('change', e => { state.order = e.target.value; recalc(); });
+$('#vruleSel').addEventListener('change', e => { state.virtualRule = e.target.value; recalc(); });
+$('#tolSel').addEventListener('change', e => { state.tol = +e.target.value; recalc(); });
+$('#in_B').addEventListener('change', () => { buildBandRows(); recalc(); });
+for (const id of ['in_N','in_W','in_ovl','in_polyN','in_f','in_p','in_H','in_GSD','in_R',
+                  'in_dOdd','in_dEven','in_d1','in_dd'])
+  $(('#' + id)).addEventListener('input', () => { if (id === 'in_d1' || id === 'in_dd') refreshAutoRows(); recalc(); });
+/* 为单位切换做真正的数值换算：在 change 前捕获旧单位 */
+(function bindUnits(){
+  const FU = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  for (const [id, un] of [['in_f','un_f'],['in_p','un_p'],['in_H','un_H'],['in_GSD','un_GSD'],['in_R','un_R']]){
+    const sel = $(('#' + un));
+    let prev = sel.value;
+    sel.addEventListener('change', () => {
+      const inp = $(('#' + id));
+      const v = parseFloat(inp.value);
+      if (inp.value.trim() !== '' && isFinite(v)){
+        const si = v * FU[prev];
+        inp.value = String(parseFloat((si / FU[sel.value]).toPrecision(6)));
+      }
+      prev = sel.value;
+      recalc();
+    });
+  }
+})();
+
+/* ---------- localStorage ---------- */
+const LS_KEY = 'pushbroom_coef_state';
+function save(){
+  const raw = {
+    B: $('#in_B').value, N: $('#in_N').value, W: $('#in_W').value,
+    ovl: $('#in_ovl').value, polyN: $('#in_polyN').value, fname: $('#fnameEcho').value,
+    f: $('#in_f').value, un_f: $('#un_f').value,
+    p: $('#in_p').value, un_p: $('#un_p').value,
+    H: $('#in_H').value, un_H: $('#un_H').value,
+    GSD: $('#in_GSD').value, un_GSD: $('#un_GSD').value,
+    R: $('#in_R').value, un_R: $('#un_R').value,
+    d1: $('#in_d1').value, dd: $('#in_dd').value,
+    dOdd: $('#in_dOdd').value, dEven: $('#in_dEven').value,
+    bandD: state.bandD.map(d => d.v),
+    layout: state.layout, offmode: state.offmode, offUnit: state.offUnit,
+    order: state.order, virtualRule: state.virtualRule, tol: state.tol,
+  };
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(raw)); }catch(e){}
+}
+function load(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
+  if (!d) return;
+  let restored = 0;
+  const set = (id, v) => { if (v != null && v !== ''){ $(('#' + id)).value = v; restored++; } };
+  set('in_B', d.B); set('in_N', d.N); set('in_W', d.W); set('in_ovl', d.ovl);
+  set('in_polyN', d.polyN); set('fnameEcho', d.fname);
+  set('in_f', d.f); set('in_p', d.p); set('in_H', d.H); set('in_GSD', d.GSD); set('in_R', d.R);
+  for (const k of ['un_f','un_p','un_H','un_GSD','un_R'])
+    if (d[k]) $(('#' + k)).value = d[k];
+  set('in_d1', d.d1); set('in_dd', d.dd); set('in_dOdd', d.dOdd); set('in_dEven', d.dEven);
+  if (d.layout){ state.layout = d.layout; $$('input[name=layout]').forEach(x => x.checked = x.value === d.layout); }
+  if (d.offmode){ state.offmode = d.offmode; $$('input[name=offmode]').forEach(x => x.checked = x.value === d.offmode); }
+  if (d.order){ state.order = d.order; $('#orderSel').value = d.order; }
+  if (d.virtualRule){ state.virtualRule = d.virtualRule; $('#vruleSel').value = d.virtualRule; }
+  if (d.tol != null){ state.tol = d.tol; $('#tolSel').value = String(d.tol); }
+  renderOffUnitSel();
+  if (d.offUnit != null){
+    state.offUnit = Math.min(d.offUnit, OFF_UNITS[state.offmode].length - 1);
+    renderOffUnitSel();
+  }
+  toggleLayout();
+  buildBandRows();
+  if (Array.isArray(d.bandD))
+    d.bandD.forEach((v, b) => { if (v != null && v !== '' && state.bandD[b]){
+      state.bandD[b].v = v; const el = $('#bd_' + (b + 1)); if (el) el.value = v; } });
+  if (restored) toast('已自动恢复上次输入（' + restored + ' 个参数，存于本浏览器；「重置」可清除）');
+}
+$('#btnReset').addEventListener('click', () => {
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  location.reload();
+});
+
+/* ---------- toast ---------- */
+let toastTimer = 0;
+function toast(msg, isErr){
+  let t = $('#toast');
+  if (!t){ t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, isErr ? 6000 : 3500);
+}
+
+/* ---------- 启动 ---------- */
+$('#fnameEcho').value = 'pushbroom.coef';
+renderOffUnitSel();
+toggleLayout();
+buildBandRows();
+load();
+recalc();
+</script>
+</body>
+</html>

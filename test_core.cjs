@@ -1,10 +1,10 @@
 'use strict';
-/* 自测：从 index.html 抽出 <script id="core"> 真实代码，
+/* 自测：从 wiskbroom.html 抽出 <script id="core"> 真实代码，
    验证推导链闭环、互检触发、漏扫约束触发、TXT 参数文件往返。运行：node test_core.cjs */
 const fs = require('fs');
 const path = require('path');
 
-const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, 'wiskbroom.html'), 'utf8');
 const m = html.match(/<script id="core">([\s\S]*?)<\/script>/);
 if (!m) { console.error('FAIL: 未找到 core script 块'); process.exit(1); }
 const corePath = path.join(__dirname, '_core_tmp.cjs');
