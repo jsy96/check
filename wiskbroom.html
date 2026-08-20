@@ -132,12 +132,15 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
     </details>
   </div>
   <textarea id="jsonout" readonly spellcheck="false"></textarea>
+  <p style="text-align:center;margin:12px 0 0;font-size:12px;color:var(--mut)">
+    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">鄂ICP备2025092414号-4</a>
+  </p>
 </footer>
 
 <script id="core">
 'use strict';
 /* ============ 核心：参数定义、求解、校验（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260820-4';
+const VERSION = 'v1.0.260820-5';
 
 const UNIT_TYPES = {
   dist:  {units:[['km',1e3],['m',1],['cm',1e-2],['mm',1e-3],['μm',1e-6]]},

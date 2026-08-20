@@ -4,13 +4,15 @@
 
 | 文件 | 说明 |
 |---|---|
-| `index.html` | 主页「爱玩的老人」（v1.0.260820-1）：链接外部站点 bigdog.leige.site / music.leige.site，以及本项目 game.html / pushbroom.html / wiskbroom.html |
-| `wiskbroom.html` | 面阵相机卫星摆扫 · 参数一致性校验（v1.0.260820-4） |
-| `pushbroom.html` | 线阵推扫相机参数计算（v1.0.260820-4） |
+| `index.html` | 主页「爱玩的老人」（v1.0.260820-4）：上半部分「本站工具与游戏」依次链接 pushbroom.html / wiskbroom.html / game.html（一起小学在最右侧），下半部分「有趣的声音」链接 bigdog.leige.site / music.leige.site |
+| `wiskbroom.html` | 面阵相机卫星摆扫 · 参数一致性校验（v1.0.260820-5） |
+| `pushbroom.html` | 线阵推扫相机参数计算（v1.0.260820-5） |
 | `test_core.cjs` | wiskbroom.html 核心计算自测 |
 | `test_pushbroom.cjs` | pushbroom.html 核心计算自测（含用 taijing304_MSS.coef 复现几何模型） |
 | `taijing304_MSS.coef` | 线阵推扫相机安装系数实例文件（4 波段 × 3 片 × 3072 探元），推扫工具的输出格式参照 |
-| `game.html` | 与本工具集无关的独立页面 |
+| `game.html` | 独立娱乐页面（v1.0.260820-1） |
+
+全站所有页面页脚均悬挂备案号「鄂ICP备2025092414号-4」，链接至工信部备案系统。
 
 ---
 
