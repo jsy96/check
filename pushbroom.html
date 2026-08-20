@@ -147,10 +147,10 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
         <div class="derived"></div></div>
       <div class="prow"><div class="plabel">虚拟片 X 取法</div>
         <div class="pctl"><select id="vruleSel" style="max-width:none">
+          <option value="min" selected>全局最小（默认，taijing304 实例口径）</option>
           <option value="minmax">片内最大 → 片间最小</option>
-          <option value="min">全局最小（taijing304 实例口径）</option>
         </select></div>
-        <div class="pnote">虚拟片 lookAngleX：每片 CCD 各波段取最大，再各片取最小；交错排列下两种取法结果相同</div>
+        <div class="pnote">交错排列下两种取法不同：全局最小 = 最小基偏移 + 较小分量；片内最大→片间最小 = 最大基偏移 + 较小分量</div>
         <div class="derived"></div></div>
       <div class="prow"><div class="plabel">输出文件名</div>
         <div class="pctl"><input id="in_fname" type="text" value="pushbroom.coef"></div>
@@ -185,7 +185,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
           <label><input type="radio" name="layout" value="colinear" checked> 共线排列</label>
           <label><input type="radio" name="layout" value="staggered"> 交错排列</label>
         </div>
-        <div class="pnote">共线：各波段整排在沿轨方向错开，片内垂轨拼接；交错：奇/偶片沿轨位置不同</div>
+        <div class="pnote">各波段均有沿轨基偏移（下方输入）；交错排列再叠加奇/偶片沿轨交错分量</div>
         <div class="derived"></div></div>
       <div class="prow"><div class="plabel">偏移输入方式</div>
         <div class="pctl">
@@ -205,13 +205,13 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
         <div class="pnote">距主点的沿轨距离 d（tanX = d/f）或沿轨离轴角 α（tanX = tanα）；切换时按焦距自动换算；当前输入方式的单位可用、另一方式置灰</div>
         <div class="derived"></div></div>
 
-      <div id="colinBox">
-        <div class="prow"><div class="plabel">波段1 偏移 d₁</div>
+      <div id="bandBox">
+        <div class="prow"><div class="plabel">波段1 基偏移 d₁</div>
           <div class="pctl"><input id="in_d1" type="number" step="any"></div>
-          <div class="pnote">与 Δd 一起用于自动填充各波段偏移</div><div class="derived"></div></div>
+          <div class="pnote">与 Δd 一起用于自动填充各波段沿轨基偏移（两种排列方式均使用）</div><div class="derived"></div></div>
         <div class="prow"><div class="plabel">相邻波段间距 Δd</div>
           <div class="pctl"><input id="in_dd" type="number" step="any"></div>
-          <div class="pnote">波段 b 偏移 = d₁ + (b−1)·Δd；改 d₁/Δd 会刷新未手工修改的行</div>
+          <div class="pnote">波段 b 基偏移 = d₁ + (b−1)·Δd；改 d₁/Δd 会刷新未手工修改的行</div>
           <div class="pctl" style="grid-area:dv;justify-content:flex-start;margin-top:-2px">
             <button class="mini" id="btnFill">按 d₁+Δd 填充全部</button>
           </div></div>
@@ -219,10 +219,10 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
       </div>
 
       <div id="stagBox" style="display:none">
-        <div class="prow"><div class="plabel">奇数片偏移（第1,3,5…片）</div>
+        <div class="prow"><div class="plabel">奇数片交错分量（第1,3,5…片）</div>
           <div class="pctl"><input id="in_dOdd" type="number" step="any"></div>
-          <div class="pnote">奇偶片沿轨错开实现垂轨交错采样；各波段共用同一奇偶布置</div><div class="derived" id="dv_dOdd"></div></div>
-        <div class="prow"><div class="plabel">偶数片偏移（第2,4,6…片）</div>
+          <div class="pnote">仅交错排列使用：奇偶片沿轨错开实现垂轨交错采样，各波段共用；总偏移 = 波段基偏移 + 交错分量</div><div class="derived" id="dv_dOdd"></div></div>
+        <div class="prow"><div class="plabel">偶数片交错分量（第2,4,6…片）</div>
           <div class="pctl"><input id="in_dEven" type="number" step="any"></div>
           <div class="pnote"></div><div class="derived" id="dv_dEven"></div></div>
       </div>
@@ -247,6 +247,10 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
     <div class="card"><h2>一致性校验与物理约束</h2>
       <div class="sub">恒等式偏差超容差或约束违反即报红</div>
       <div id="lstChk"></div></div>
+    <div class="card"><h2>焦面布置示意</h2>
+      <div class="sub">x 沿轨<b>向下为正</b>、y 垂轨<b>向左为正</b>；探元 0 在各片左端（tanY 最大端）；垂轨为真实比例，沿轨行间距仅示意顺序（非比例）；悬停可看数值</div>
+      <div id="focalBox"><div class="item info"><span class="st">ℹ</span><span class="dt">参数不足，暂无示意图</span></div></div>
+    </div>
     <div class="card"><h2>布置明细</h2>
       <div class="sub">各波段沿轨布置与各片垂轨布置</div>
       <div id="tblLay"></div></div>
@@ -259,8 +263,9 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
       <div class="formula-note">
         <p><b>文件头</b>：<code>nCamPoly</code> 多项式阶数（每行系数个数 = 阶数+1）；<code>bandCount</code> 波段数 B；<code>sensorCount</code> 每波段片数 N；<code>angleBiasRoll/Pitch/Yaw</code> 与 <code>angleBiasR</code>（3×3 行优先）为本工具固定输出的零偏置 / 单位阵。</p>
         <p><b>探元块</b>：共 <code>1 + N×B</code> 块，每块三行 <code>width= 探元数</code>、<code>lookAngleX: c₀ … cₖ</code>、<code>lookAngleY: c₀ … cₖ</code>。lookAngleX 沿轨、lookAngleY 垂轨，系数得到的是<b>视角正切值</b>：多项式取值 (tanX, tanY) 使 <code>(tanX, tanY, 1)</code> 为相机坐标系探元视线矢量；自变量为 0 基探元序号 j = 0…W−1。</p>
-        <p><b>几何模型</b>（已用 taijing304_MSS.coef 数值复现验证）：像元角步长 <code>s = p/f</code>；整线关于主点垂轨居中，半跨度 = 虚拟片宽×s/2；第 i 片 <code>lookAngleY</code> 常数项 = 半跨度 − (i−1)·(W−ovl)·s，一次项 = −s；共线排列 lookAngleX 常数项 = tan(波段沿轨离轴角)，交错排列按奇/偶片取值。</p>
-        <p><b>虚拟片（第 0 块）</b>：沿轨方向排在最前面的那组 CCD 拼接得到的虚拟 CCD，width = N·W − (N−1)·ovl，lookAngleY 覆盖整条拼接线。lookAngleX 默认按「<b>每片 CCD 各波段取最大 → 再各片取最小</b>」取值：共线排列（各片均含全部波段）即 tanX 最大的波段，交错排列即奇/偶片中较小者；taijing304_MSS.coef 实例文件的虚拟块为全局最小口径，如需逐字节复现实例可在左栏切为「全局最小」。</p>
+        <p><b>几何模型</b>（已用 taijing304_MSS.coef 数值复现验证）：像元角步长 <code>s = p/f</code>；整线关于主点垂轨居中，半跨度 = 虚拟片宽×s/2；第 i 片 <code>lookAngleY</code> 常数项 = 半跨度 − (i−1)·(W−ovl)·s，一次项 = −s；lookAngleX 常数项：共线排列 = tan(波段沿轨离轴角)，交错排列 = 波段基偏移 + 奇/偶片交错分量（各波段均有基偏移，两种排列通用）。</p>
+        <p><b>坐标约定</b>：x 沿轨<b>向下为正</b>、y 垂轨<b>向左为正</b>；各片探元 0 在左端（tanY 最大端），探元序号增大 tanY 减小。</p>
+        <p><b>虚拟片（第 0 块）</b>：沿轨方向排在最前面（图上最上方）的那组 CCD 拼接得到的虚拟 CCD，width = N·W − (N−1)·ovl，lookAngleY 覆盖整条拼接线。lookAngleX 默认取<b>全局最小</b>（与 taijing304_MSS.coef 实例一致）：共线排列 = tanX 最小的波段，交错排列 = 最小基偏移 + 较小交错分量；备选「片内最大→片间最小」= 共线最大基偏移 / 交错最大基偏移 + 较小分量。</p>
         <p><b>GSD / 幅宽</b>：星下点平面近似 <code>GSD = p·H/f</code>，幅宽 = 虚拟片宽 × GSD；边缘离轴角 = atan(半跨度)，超过地平线角 arcsin(R/(R+H)) 报警；波段间沿轨地面基线 = H·ΔtanX（配准用）。</p>
         <p><b>块顺序</b>：默认<b>片优先</b>——第 1 片 CCD 的第 1…B 波段，再第 2 片……（与需求说明及 taijing304_MSS.coef 实测块序一致）；如需"第 1 波段的 N 片 → 第 2 波段的 N 片"可在左栏切到波段优先。</p>
         <p><b>字节格式</b>：ASCII、CRLF 换行、无 BOM、末尾单个换行；系数 C 风格 <code>%.18e</code>（指数至少两位，如 <code>1.2e-2 → e-02</code>）；angleBias 三行用 <code>%.18f</code> 定点；<code>width=</code> 后有一个空格，<code>lookAngleX:</code> 后有一个空格。</p>
@@ -273,7 +278,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：几何模型、系数生成、校验、TXT 读写（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260820-3';
+const VERSION = 'v1.0.260820-4';
 const DEG = Math.PI / 180;
 
 /* ---- C 风格格式化 ---- */
@@ -336,14 +341,12 @@ function buildGeometry(cfg){
   if (!isInt(W) || W < 1) err.push('每片探元数 W 须为正整数');
   if (!isInt(ovl) || ovl < 0 || ovl > W - 1) err.push('拼接重叠像元数 ovl 须为 0…W−1 的整数');
   if (!(cfg.slope > 0)) err.push('像元角步长 p/f 不可用（焦距/探元尺寸未定）');
-  if (cfg.layout === 'colinear'){
-    if (!Array.isArray(cfg.tanBands) || cfg.tanBands.length !== B ||
-        !cfg.tanBands.every(t => isFinite(t)))
-      err.push('共线排列：各波段沿轨偏移未填全');
-  } else {
-    if (!isFinite(cfg.tanOdd) || !isFinite(cfg.tanEven))
-      err.push('交错排列：奇/偶片沿轨偏移未填全');
-  }
+  if (!Array.isArray(cfg.tanBands) || cfg.tanBands.length !== B ||
+      !cfg.tanBands.every(t => isFinite(t)))
+    err.push(cfg.layout === 'colinear' ? '各波段沿轨基偏移未填全'
+      : '各波段沿轨基偏移未填全（交错排列总偏移 = 波段基偏移 + 奇/偶片交错分量）');
+  if (cfg.layout === 'staggered' && (!isFinite(cfg.tanOdd) || !isFinite(cfg.tanEven)))
+    err.push('交错排列：奇/偶片沿轨交错分量未填全');
   if (err.length) return {errors: err};
 
   const s = cfg.slope;
@@ -352,8 +355,9 @@ function buildGeometry(cfg){
   const chipC0 = [];              // 第 i 片(1基) lookAngleY 常数项
   for (let i = 0; i < N; i++) chipC0.push(halfSpan - i * (W - ovl) * s);
 
-  const tanXOf = (i, b) => cfg.layout === 'colinear' ? cfg.tanBands[b - 1]
-                   : (i % 2 === 1 ? cfg.tanOdd : cfg.tanEven);
+  const tanXOf = (i, b) => cfg.layout === 'colinear'
+    ? cfg.tanBands[b - 1]                                   // 共线：仅波段基偏移
+    : cfg.tanBands[b - 1] + (i % 2 === 1 ? cfg.tanOdd : cfg.tanEven); // 交错：基偏移+奇偶分量
   const physical = [];
   for (let i = 1; i <= N; i++)
     for (let b = 1; b <= B; b++)
@@ -368,20 +372,25 @@ function buildGeometry(cfg){
   }));
 
   /* 虚拟片 lookAngleX：默认（virtualRule='minmax'）每片 CCD 在其各波段中取最大、
-     再在各片之间取最小——共线排列各片波段布置相同，即 tanX 最大的波段；
-     交错排列即奇/偶片中较小者。
-     virtualRule='min' 为全局最小（taijing304_MSS.coef 实例文件口径），
-     仅在共线排列下与默认取法不同。 */
+     再在各片之间取最小——共线排列即 tanX 最大的波段；
+     交错排列 = 最大基偏移 + 较小的奇/偶交错分量。
+     virtualRule='min' 为全局最小（taijing304_MSS.coef 实例文件口径）
+     = 最小基偏移 + 较小交错分量（交错）/ 最小基偏移（共线）。 */
+  const maxB = Math.max.apply(null, cfg.tanBands);
+  const minB = Math.min.apply(null, cfg.tanBands);
+  const rule = cfg.virtualRule || 'min';   // 默认全局最小（taijing304_MSS.coef 实例口径）
   let vTan, srcLabel;
   if (cfg.layout === 'colinear'){
-    const pick = cfg.virtualRule === 'min'
-      ? Math.min.apply(null, cfg.tanBands) : Math.max.apply(null, cfg.tanBands);
+    const pick = rule === 'min' ? minB : maxB;
     vTan = pick;
     const srcB = cfg.tanBands.indexOf(pick) + 1;
-    srcLabel = `波段${srcB}（各波段中 tanX ${cfg.virtualRule === 'min' ? '最小' : '最大'}）`;
+    srcLabel = `波段${srcB}（各波段中 tanX ${rule === 'min' ? '最小' : '最大'}）`;
   } else {
-    vTan = Math.min(cfg.tanOdd, cfg.tanEven);
-    srcLabel = (cfg.tanOdd <= cfg.tanEven ? '奇数片' : '偶数片') + '（tanX 较小者）';
+    const sMin = Math.min(cfg.tanOdd, cfg.tanEven);
+    const sName = cfg.tanOdd <= cfg.tanEven ? '奇数片' : '偶数片';
+    const base = rule === 'min' ? minB : maxB;
+    vTan = base + sMin;
+    srcLabel = `${rule === 'min' ? '最小' : '最大'}基偏移 + ${sName}分量`;
   }
   blocks.unshift({kind: 'virtual', width: Vw, i: 0, b: 0,
     tanX: vTan, y0: halfSpan, slope: s,
@@ -456,10 +465,10 @@ function buildChecks(opt, geo, cfg){
   // ⑤ 排列合理性
   if (cfg.layout === 'staggered' && isFinite(cfg.tanOdd) && isFinite(cfg.tanEven)){
     if (cfg.tanOdd === cfg.tanEven)
-      C.push({name: '交错排列奇偶错开', status: 'info', detail: '奇偶片偏移相同：等效共线排列，无交错效果'});
+      C.push({name: '交错排列奇偶错开', status: 'info', detail: '奇/偶片交错分量相同：各波段内奇偶片无沿轨错开，等效共线排列'});
     else
       C.push({name: '交错排列奇偶错开', status: 'ok',
-        detail: `奇偶片 tanX 差 ${fmtNum(cfg.tanOdd - cfg.tanEven)}` +
+        detail: `奇/偶交错分量 tanX 差 ${fmtNum(cfg.tanOdd - cfg.tanEven)}（各波段一致）` +
           (opt.H != null ? `，沿轨地面错位 ${fmtM(Math.abs(cfg.tanOdd - cfg.tanEven) * opt.H)}` : '')});
   }
   if (cfg.layout === 'colinear' && Array.isArray(cfg.tanBands) && cfg.tanBands.every(isFinite)){
@@ -618,7 +627,7 @@ function paramsToText(state){ // state：{values(SI 或整数), db:[{idx,value(S
     `layout = ${state.meta.layout || 'colinear'} # colinear 共线 / staggered 交错`,
     `offsetMode = ${state.meta.offsetMode || 'dist'} # dist 焦面距离 / angle 离轴角`,
     `blockOrder = ${state.meta.blockOrder || 'chip'} # chip 片优先 / band 波段优先`,
-    `virtualRule = ${state.meta.virtualRule || 'minmax'} # minmax 片内最大→片间最小 / min 全局最小`,
+    `virtualRule = ${state.meta.virtualRule || 'min'} # min 全局最小 / minmax 片内最大→片间最小`,
     `tolerance = ${state.meta.tol != null ? state.meta.tol : 0.02}`,
     state.meta.filename ? `filename = ${state.meta.filename}` : '',
   ];
@@ -659,7 +668,7 @@ const state = {
   offmode: 'dist',      // dist / angle
   offUnit: 0,           // 当前偏移单位组内索引
   order: 'chip',        // chip / band
-  virtualRule: 'minmax',// minmax 片内最大→片间最小 / min 全局最小
+  virtualRule: 'min',    // min 全局最小（默认）/ minmax 片内最大→片间最小
   bandD: [],            // [{v:'原始串', ov:是否手工改过}]
 };
 let coreOut = {opt: null, geo: null, text: ''};
@@ -798,23 +807,21 @@ function recalc(){
   const slope = (opt.p != null && opt.f != null && opt.f > 0) ? opt.p / opt.f : null;
   coreOut.opt = opt;
 
-  // 偏移 → tanX
-  let tanBands = null, tanOdd = NaN, tanEven = NaN, offsetMissing = [];
-  if (state.layout === 'colinear'){
-    tanBands = [];
-    for (let b = 0; b < (Number.isInteger(B) ? B : 0); b++){
-      const raw = state.bandD[b] ? parseFloat(state.bandD[b].v) : NaN;
-      const si = isFinite(raw) ? raw * offFactor() : NaN;
-      const t = isFinite(si) ? tanOfOff(si) : NaN;
-      tanBands.push(t);
-      if (!isFinite(t)) offsetMissing.push(`波段${b + 1}`);
-    }
-  } else {
+  // 偏移 → tanX：各波段基偏移（两种排列共用）+ 奇/偶片交错分量（仅交错排列）
+  let tanBands = [], tanOdd = NaN, tanEven = NaN, offsetMissing = [];
+  for (let b = 0; b < (Number.isInteger(B) ? B : 0); b++){
+    const raw = state.bandD[b] ? parseFloat(state.bandD[b].v) : NaN;
+    const si = isFinite(raw) ? raw * offFactor() : NaN;
+    const t = isFinite(si) ? tanOfOff(si) : NaN;
+    tanBands.push(t);
+    if (!isFinite(t)) offsetMissing.push(`波段${b + 1}基偏移`);
+  }
+  if (state.layout === 'staggered'){
     const o = numVal('in_dOdd'), e = numVal('in_dEven');
     tanOdd = (o != null) ? tanOfOff(o * offFactor()) : NaN;
     tanEven = (e != null) ? tanOfOff(e * offFactor()) : NaN;
-    if (!isFinite(tanOdd)) offsetMissing.push('奇数片偏移');
-    if (!isFinite(tanEven)) offsetMissing.push('偶数片偏移');
+    if (!isFinite(tanOdd)) offsetMissing.push('奇数片交错分量');
+    if (!isFinite(tanEven)) offsetMissing.push('偶数片交错分量');
   }
 
   let geo = null, text = '', geoErrs = [];
@@ -823,7 +830,7 @@ function recalc(){
       N: Number.isInteger(N) ? N : 0, W: Number.isInteger(W) ? W : 0,
       ovl: Number.isInteger(ovl) ? ovl : -1, slope,
       layout: state.layout,
-      tanBands: state.layout === 'colinear' ? tanBands : null,
+      tanBands,
       tanOdd, tanEven, order: state.order, virtualRule: state.virtualRule});
     geoErrs = g.errors;
     if (!geoErrs.length && !(Number.isInteger(polyN) && polyN >= 1 && polyN <= 9))
@@ -844,10 +851,61 @@ function recalc(){
   renderDerived(opt, geo, tanBands, tanOdd, tanEven);
   renderSum(opt, geo, cfg);
   renderChecks(checks);
+  renderFocal(geo);
   renderLay(opt, geo, cfg, tanBands);
   renderPreview(text, geo, cfg);
   renderBanner(checks);
   save();
+}
+
+/* ---------- 焦面布置示意图（x 向下为正、y 向左为正） ---------- */
+const BAND_PALETTE = ['#2059a8', '#c96a11', '#167a48', '#7a3fa0', '#b3261e', '#0e7490', '#8a6d00', '#546e7a'];
+function renderFocal(geo){
+  const box = $('#focalBox');
+  if (!geo){ box.innerHTML = '<div class="item info"><span class="st">ℹ</span><span class="dt">参数不足，暂无示意图</span></div>'; return; }
+  // 所有块（含虚拟片）的 tanX 唯一值：小 → 图上方（x 向下为正）
+  const uniq = [];
+  for (const q of geo.blocks)
+    if (!uniq.some(u => Math.abs(u - q.tanX) <= 1e-12 * Math.max(1, Math.abs(u), Math.abs(q.tanX))))
+      uniq.push(q.tanX);
+  uniq.sort((a, b) => a - b);
+  const rowOf = t => uniq.findIndex(u => Math.abs(u - t) <= 1e-12 * Math.max(1, Math.abs(u), Math.abs(t)));
+
+  const innerW = 560, padL = 118, padR = 16, padT = 30, rowH = 40;
+  const Hpx = padT + uniq.length * rowH + 46;
+  const yMax = geo.halfSpan;                       // tanY ∈ (−halfSpan, +halfSpan]
+  const px = ty => padL + (yMax - ty) / (2 * yMax) * innerW;  // tanY 大 → 屏幕左（y 向左为正）
+
+  let h = `<svg viewBox="0 0 ${padL + innerW + padR} ${Hpx}" style="width:100%;height:auto;display:block" font-family="Segoe UI,Microsoft YaHei,sans-serif">`;
+  // 行分隔 + 左侧 tanX 标注
+  uniq.forEach((t, r) => {
+    const cy = padT + r * rowH;
+    h += `<line x1="${padL - 8}" y1="${cy}" x2="${padL + innerW}" y2="${cy}" stroke="#dde4ec" stroke-width="1"/>` +
+         `<text x="${padL - 12}" y="${cy + rowH / 2 + 4}" text-anchor="end" font-size="11" fill="#68788a">tanX ${fmtNum(t)}</text>`;
+  });
+  // 主点 y=0 竖线（y 向左为正 → tanY=0 在中部）
+  const x0 = px(0);
+  h += `<line x1="${x0}" y1="${padT - 6}" x2="${x0}" y2="${Hpx - 40}" stroke="#b3261e" stroke-width="1" stroke-dasharray="4 3"/>` +
+       `<text x="${x0}" y="${padT - 10}" text-anchor="middle" font-size="11" fill="#b3261e">主点 y=0</text>`;
+  // 各块：片条从 tanY=c0（左端）到 c0−(width−1)s（右端）
+  for (const q of geo.blocks){
+    const row = rowOf(q.tanX);
+    const cy = padT + row * rowH;
+    const xl = px(q.y0), xr = px(q.y0 - (q.width - 1) * geo.slope);
+    const x = Math.min(xl, xr), w = Math.abs(xl - xr);
+    const virt = q.kind === 'virtual';
+    const fill = virt ? 'none' : BAND_PALETTE[(q.b - 1) % BAND_PALETTE.length];
+    const label = virt ? `虚拟片(${q.width})` : `片${q.i}·${q.b}波`;
+    h += `<g><title>${q.label}：tanX=${fmtNum(q.tanX)}，tanY ${fmtNum(q.y0)} → ${fmtNum(q.y0 - (q.width - 1) * geo.slope)}（探元 0 在左端）</title>` +
+         `<rect x="${x.toFixed(2)}" y="${cy + 8}" width="${w.toFixed(2)}" height="16" rx="3" fill="${virt ? 'none' : fill}" ` +
+         `fill-opacity="0.35" stroke="${virt ? '#68788a' : fill}" stroke-width="${virt ? 1.4 : 1}" ${virt ? 'stroke-dasharray="5 3"' : ''}/>` +
+         (w >= 42 ? `<text x="${(x + w / 2).toFixed(1)}" y="${cy + 20.5}" text-anchor="middle" font-size="11" fill="#1f2a36">${label}</text>` : '') +
+         (w < 42 ? `<text x="${(x + w / 2).toFixed(1)}" y="${cy + 6}" text-anchor="middle" font-size="10" fill="#68788a">${label}</text>` : '') +
+         `</g>`;
+  }
+  h += `<text x="${padL}" y="${Hpx - 22}" font-size="11" fill="#68788a">← y 增大（向左为正，垂轨，真实比例）　｜　↓ x 增大（向下为正，沿轨，行间距非比例）</text>`;
+  h += '</svg>';
+  box.innerHTML = h;
 }
 
 /* ---------- 渲染 ---------- */
@@ -870,8 +928,8 @@ function renderDerived(opt, geo, tanBands, tanOdd, tanEven){
         '，离轴角 ' + fmtDeg(Math.atan(tanBands[b])) : '';
     }
   if (state.layout === 'staggered'){
-    $('#dv_dOdd').textContent = isFinite(tanOdd) ? 'tanX = ' + fmtNum(tanOdd) : '';
-    $('#dv_dEven').textContent = isFinite(tanEven) ? 'tanX = ' + fmtNum(tanEven) : '';
+    $('#dv_dOdd').textContent = isFinite(tanOdd) ? 'tanX 分量 = ' + fmtNum(tanOdd) + '（总 tanX = 波段基偏移 + 分量）' : '';
+    $('#dv_dEven').textContent = isFinite(tanEven) ? 'tanX 分量 = ' + fmtNum(tanEven) : '';
   }
 }
 
@@ -908,11 +966,20 @@ function renderLay(opt, geo, cfg, tanBands){
   if (state.layout === 'staggered'){
     const o = parseFloat($('#in_dOdd').value), e = parseFloat($('#in_dEven').value);
     const tO = isFinite(o) ? tanOfOff(o * offFactor()) : NaN, tE = isFinite(e) ? tanOfOff(e * offFactor()) : NaN;
-    h += '<table><tr class="grprow"><td colspan="4">交错排列 · 奇偶片沿轨布置</td></tr>' +
-      '<tr><th>片组</th><th>tanX</th><th>沿轨离轴角</th><th>奇偶沿轨地面错位</th></tr>' +
-      `<tr><td>奇数片（1,3,5…）</td><td class="v">${isFinite(tO) ? fmtNum(tO) : '—'}</td><td class="v">${isFinite(tO) ? fmtDeg(Math.atan(tO)) : '—'}</td>` +
-      `<td class="v" rowspan="2">${(isFinite(tO) && isFinite(tE) && opt.H != null) ? fmtM(Math.abs(tO - tE) * opt.H) : '—'}</td></tr>` +
-      `<tr><td>偶数片（2,4,6…）</td><td class="v">${isFinite(tE) ? fmtNum(tE) : '—'}</td><td class="v">${isFinite(tE) ? fmtDeg(Math.atan(tE)) : '—'}</td></tr></table>`;
+    h += '<table><tr class="grprow"><td colspan="4">交错排列 · 总偏移 = 波段基偏移 + 奇/偶片交错分量</td></tr>' +
+      '<tr><th>波段</th><th>基偏移 tanX</th><th>奇片总 tanX</th><th>偶片总 tanX</th></tr>';
+    for (let b = 0; b < tanBands.length; b++){
+      const d = tanBands[b];
+      const q = (isFinite(d) && isFinite(tO)) ? d + tO : NaN;
+      const r = (isFinite(d) && isFinite(tE)) ? d + tE : NaN;
+      h += `<tr><td>波段 ${b + 1}</td><td class="v">${isFinite(d) ? fmtNum(d) : '—'}</td>
+        <td class="v">${isFinite(q) ? fmtNum(q) : '—'}</td>
+        <td class="v">${isFinite(r) ? fmtNum(r) : '—'}</td></tr>`;
+    }
+    if (isFinite(tO) && isFinite(tE))
+      h += `<tr><td>奇偶沿轨地面错位 = H·|奇分量−偶分量|</td>
+        <td class="v" colspan="3">${opt.H != null ? fmtM(Math.abs(tO - tE) * opt.H) : fmtNum(Math.abs(tO - tE)) + '（tanX 差）'}</td></tr>`;
+    h += '</table>';
   }
   if (geo){
     h += '<table><tr class="grprow"><td colspan="4">各片垂轨布置（整线关于主点居中）</td></tr>' +
@@ -1085,7 +1152,6 @@ $('#fileTxt').addEventListener('change', async e => {
 
 /* ---------- 布局切换 / 事件 ---------- */
 function toggleLayout(){
-  $('#colinBox').style.display = state.layout === 'colinear' ? '' : 'none';
   $('#stagBox').style.display = state.layout === 'staggered' ? '' : 'none';
 }
 $$('input[name=layout]').forEach(r => r.addEventListener('change', e => {

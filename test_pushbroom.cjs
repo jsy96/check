@@ -70,10 +70,14 @@ console.log('Case A：用 taijing304_MSS.coef 复现几何模型（ovl=25、片�
   console.log(exact ? '    （且与原文件逐字节一致）'
                     : '    （数值一致；字节级非完全一致，属生成端运算次序的末位差异）');
   const geoDef = core.buildGeometry({B: 4, N: 3, W: 3072, ovl: 25, slope,
-    layout: 'colinear', tanBands, order: 'chip'});  // 默认取法
-  assert(geoDef.blocks[0].tanX === Math.max.apply(null, tanBands) &&
+    layout: 'colinear', tanBands, order: 'chip'});  // 默认取法（全局最小）
+  assert(geoDef.blocks[0].tanX === Math.min.apply(null, tanBands) &&
          ref.blocks[0].x[0] === Math.min.apply(null, tanBands),
-    '默认取法（片内最大→片间最小）虚拟片 X = 各波段 tanX 最大；实例文件虚拟块实为全局最小（两者口径不同）');
+    '默认取法（全局最小）虚拟片 X 与实例文件虚拟块一致');
+  const geoMM = core.buildGeometry({B: 4, N: 3, W: 3072, ovl: 25, slope,
+    layout: 'colinear', tanBands, order: 'chip', virtualRule: 'minmax'});
+  assert(geoMM.blocks[0].tanX === Math.max.apply(null, tanBands),
+    'minmax 取法（片内最大→片间最小）：虚拟片 X = 各波段 tanX 最大');
 }
 
 console.log('Case B：块顺序（片优先 / 波段优先）与垂轨布置');
@@ -96,11 +100,11 @@ console.log('Case B：块顺序（片优先 / 波段优先）与垂轨布置');
   assert(Math.abs(geoChip.chipC0[2] - (W - 1) * s + h) <= s * 1.000001,
     '末片末探元 ≈ −半跨度（1 像元内，居中）');
   assert(geoChip.blocks[0].kind === 'virtual' && geoChip.blocks[0].width === Vw &&
-         geoChip.blocks[0].tanX === 0.02,
-    '虚拟片：宽 = N·W−(N−1)·ovl，默认取法 X = 各波段 tanX 最大（片内最大→片间最小）');
-  const geoMin = core.buildGeometry({B, N, W, ovl, slope: s, layout: 'colinear',
-    tanBands: [0.01, 0.02], order: 'chip', virtualRule: 'min'});
-  assert(geoMin.blocks[0].tanX === 0.01, '全局最小取法（virtualRule=min）：虚拟片 X = 0.01');
+         geoChip.blocks[0].tanX === 0.01,
+    '虚拟片：宽 = N·W−(N−1)·ovl，默认取法（全局最小）X = 0.01');
+  const geoMM = core.buildGeometry({B, N, W, ovl, slope: s, layout: 'colinear',
+    tanBands: [0.01, 0.02], order: 'chip', virtualRule: 'minmax'});
+  assert(geoMM.blocks[0].tanX === 0.02, 'minmax 取法：虚拟片 X = 0.02（各波段最大）');
 }
 
 console.log('Case C：光学闭包 GSD = p·H/f 与校验触发');
@@ -121,19 +125,28 @@ console.log('Case C：光学闭包 GSD = p·H/f 与校验触发');
   assert(info && info.status === 'info', '推导补全时不再重复校验（info）');
 }
 
-console.log('Case D：交错排列');
+console.log('Case D：交错排列（各波段基偏移 + 奇/偶片交错分量）');
 {
   const geo = core.buildGeometry({B: 2, N: 4, W: 50, ovl: 0, slope: 2e-5,
-    layout: 'staggered', tanOdd: 0.005, tanEven: 0.015, order: 'chip'});
+    layout: 'staggered', tanBands: [0.001, 0.003], tanOdd: 0.0005, tanEven: 0.0015,
+    order: 'chip'});
   const xs = geo.blocks.slice(1).map(q => q.tanX);
-  assert(xs.join() === '0.005,0.005,0.015,0.015,0.005,0.005,0.015,0.015',
-    `奇偶片 tanX 交替（得 ${xs.join()}）`);
-  assert(geo.blocks[0].tanX === 0.005, '虚拟片 tanX 取奇偶中较小者');
+  const exp = [0.0015, 0.0035, 0.0025, 0.0045, 0.0015, 0.0035, 0.0025, 0.0045];
+  assert(xs.length === 8 && xs.every((v, k) => relErr(v, exp[k]) < 1e-12),
+    '总 tanX = 波段基偏移 + 奇/偶分量：奇片 0.001/0.003+0.0005，偶片 +0.0015');
+  assert(relErr(geo.blocks[0].tanX, 0.001 + 0.0005) < 1e-12,
+    '默认虚拟片 X = 最小基偏移 + 较小分量 = 0.0015');
+  const geoMM = core.buildGeometry({B: 2, N: 4, W: 50, ovl: 0, slope: 2e-5,
+    layout: 'staggered', tanBands: [0.001, 0.003], tanOdd: 0.0005, tanEven: 0.0015,
+    order: 'chip', virtualRule: 'minmax'});
+  assert(relErr(geoMM.blocks[0].tanX, 0.003 + 0.0005) < 1e-12,
+    'minmax 虚拟片 X = 最大基偏移 + 较小分量 = 0.0035');
   const cfg = {B: 2, N: 4, W: 50, ovl: 0, polyN: 5, layout: 'staggered',
-               tol: 0.02, R: 6371e3, offsetMissing: [], tanOdd: 0.01, tanEven: 0.01, H: 500e3};
+               tol: 0.02, R: 6371e3, offsetMissing: [], tanBands: [0.001, 0.003],
+               tanOdd: 0.01, tanEven: 0.01, H: 500e3};
   const eq = core.buildChecks({p: 1, f: 1, H: 500e3, GSD: 500e3, derived: []}, null, cfg)
     .find(c => c.name.includes('奇偶错开'));
-  assert(eq && eq.status === 'info', '奇偶偏移相同 → info 提示等效共线');
+  assert(eq && eq.status === 'info', '奇偶交错分量相同 → info 提示等效共线');
 }
 
 console.log('Case E：参数非法时的拦截');
@@ -147,6 +160,10 @@ console.log('Case E：参数非法时的拦截');
   const g3 = core.buildGeometry({B: 4, N: 3, W: 3072, ovl: 5, slope: NaN,
     layout: 'colinear', tanBands: [0, 0, 0, 0], order: 'chip'});
   assert(g3.errors.some(e => /p\/f/.test(e)), 'p/f 不可用被拒绝');
+  const g4 = core.buildGeometry({B: 2, N: 2, W: 50, ovl: 0, slope: 2e-5,
+    layout: 'staggered', tanBands: [0.001], tanOdd: 0.0005, tanEven: 0.0015, order: 'chip'});
+  assert(g4.errors.length === 1 && /基偏移/.test(g4.errors[0]),
+    '交错排列波段基偏移缺项被拒绝');
 }
 
 console.log('Case F：%.18e / %.18f 格式化');
