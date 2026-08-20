@@ -69,6 +69,11 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 .formula-note code{background:#eef2f7;border-radius:4px;padding:1px 6px;font-size:12.5px}
 #jsonout{width:100%;height:160px;margin-top:8px;font:12px/1.5 Consolas,monospace;
   border:1px solid var(--line);border-radius:6px;padding:8px;display:none}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(10px);
+  background:#243447;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:80vw;z-index:99}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--bad)}
 </style>
 </head>
 <body>
@@ -85,10 +90,13 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
         <option value="0.10">10%</option>
       </select>
     </label>
+    <button id="btnImportTxt">读取参数 TXT</button>
+    <button id="btnExportTxt">保存参数 TXT</button>
     <button id="btnExport">导出参数 JSON</button>
     <button id="btnReset">重置</button>
   </div>
 </header>
+<input type="file" id="fileTxt" accept=".txt,text/plain" hidden>
 <main>
   <section id="inputs"></section>
   <section id="report">
@@ -129,7 +137,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：参数定义、求解、校验（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260820-1';
+const VERSION = 'v1.0.260820-2';
 
 const UNIT_TYPES = {
   dist:  {units:[['km',1e3],['m',1],['cm',1e-2],['mm',1e-3],['μm',1e-6]]},
@@ -421,10 +429,99 @@ function pct(x){
   if (x == null || !isFinite(x)) return '—';
   return (x*100).toFixed(1) + '%';
 }
+function fmtFull(v){ // 文件读写用：保留 12 位有效数字，避免保存/读取往返失真
+  if (v == null || !isFinite(v)) return '';
+  return String(parseFloat(v.toPrecision(12)));
+}
+
+/* ============ 参数文本文件（TXT）读写 ============
+   行格式：参数ID = 数值 [单位]。带单位按该单位换算；不带单位视为 SI 基本单位
+   （m、m/s、s、Hz、rad、rad/s、m³/s²）。# 开头（含行内 # 之后）为注释，
+   [...] 为分组标题行，导入时均忽略。另有元参数行 mode / tolerance。 */
+function parseParamText(text){
+  const res = {inputs:{}, units:{}, mode:null, tol:null, warnings:[]};
+  let s = String(text == null ? '' : text);
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1); // 去掉 UTF-8 BOM 字符
+  const lines = s.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++){
+    const body = lines[i].split('#')[0].trim(); // 去行内注释；整行注释变空
+    if (!body || body.charAt(0) === '[') continue;
+    const m = body.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
+    if (!m){ res.warnings.push(`第 ${i+1} 行无法解析，已忽略：${body}`); continue; }
+    const key = m[1], rhs = m[2].trim();
+    if (key === 'mode'){
+      if (rhs === 'center' || rhs === 'start') res.mode = rhs;
+      else res.warnings.push(`第 ${i+1} 行 mode 取值无效（应为 center/start）：${rhs}`);
+      continue;
+    }
+    if (key === 'tolerance' || key === 'tol'){
+      const t = parseFloat(rhs);
+      if (isFinite(t) && t > 0 && t <= 1) res.tol = t;
+      else res.warnings.push(`第 ${i+1} 行 tolerance 取值无效：${rhs}`);
+      continue;
+    }
+    const p = PARAMS.find(q => q.id === key);
+    if (!p){ res.warnings.push(`第 ${i+1} 行未知参数，已忽略：${key}`); continue; }
+    const vm = rhs.match(/^(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(\S*)$/);
+    if (!vm || !isFinite(parseFloat(vm[1]))){
+      res.warnings.push(`第 ${i+1} 行数值无法识别，已忽略：${body}`); continue;
+    }
+    const num = parseFloat(vm[1]), unitName = vm[2];
+    let ui;
+    if (unitName){
+      ui = UNIT_TYPES[p.ut].units.findIndex(u => u[0] === unitName);
+      if (ui < 0){ res.warnings.push(`第 ${i+1} 行单位 "${unitName}" 不适用于 ${key}，该行已忽略`); continue; }
+    } else {
+      ui = UNIT_TYPES[p.ut].units.findIndex(u => u[1] === 1); // 无单位 = SI 基本单位
+      if (ui < 0){ res.warnings.push(`第 ${i+1} 行 ${key} 必须带单位，该行已忽略`); continue; }
+    }
+    res.inputs[key] = num * UNIT_TYPES[p.ut].units[ui][1];
+    res.units[key] = ui;
+  }
+  return res;
+}
+
+function paramsToText(inputs, units, mode, tol, valMap){
+  const now = new Date(), pad = n => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const uiOf = p => (units && units[p.id] != null) ? units[p.id] : p.du;
+  const L = [
+    '# 面阵相机卫星摆扫 · 参数文件',
+    `# 工具版本: ${VERSION}    保存时间: ${stamp}`,
+    '# 行格式: 参数ID = 数值 [单位]。带单位按该单位换算；不带单位视为 SI 基本单位（m、m/s、s、Hz、rad、rad/s、m³/s²）',
+    '# # 开头为注释、[...] 为分组标题，导入时忽略；留空（自动推导）的参数不导出',
+    '',
+    `mode = ${mode === 'start' ? 'start' : 'center'} # 摆扫几何模式：center 星下点居中 / start 从星下点开始`,
+    `tolerance = ${(tol != null && isFinite(tol)) ? tol : 0.02} # 恒等式容差`,
+  ];
+  for (const g of GROUPS){
+    const rows = PARAMS.filter(p => p.grp === g.id && inputs && inputs[p.id] != null && isFinite(inputs[p.id]));
+    if (!rows.length) continue;
+    L.push('', `[${g.name}]`);
+    for (const p of rows){
+      const [n, f] = UNIT_TYPES[p.ut].units[uiOf(p)];
+      L.push(`${p.id} = ${fmtFull(inputs[p.id] / f)}${n ? ' ' + n : ''}`);
+    }
+  }
+  if (valMap){ // 推导值仅作参考，全部以注释形式写入
+    L.push('', '# ---- 推导值（自动计算，仅供阅读，导入时忽略）----');
+    for (const g of GROUPS){
+      const rows = PARAMS.filter(p => p.grp === g.id && valMap[p.id]);
+      if (!rows.length) continue;
+      L.push(`# [${g.name}]`);
+      for (const p of rows){
+        const [n, f] = UNIT_TYPES[p.ut].units[uiOf(p)];
+        L.push(`# ${p.id} = ${fmtNum(valMap[p.id].value / f)}${n ? ' ' + n : ''}  （${valMap[p.id].source}）`);
+      }
+    }
+  }
+  return L.join('\r\n') + '\r\n';
+}
 
 if (typeof module !== 'undefined' && module.exports){
   module.exports = {VERSION, UNIT_TYPES, GROUPS, PARAMS, geoPhi, totalGeoPhi,
-                    solve, buildChecks, buildConstraints, buildRefs, setMode};
+                    solve, buildChecks, buildConstraints, buildRefs, setMode,
+                    fmtFull, parseParamText, paramsToText};
 }
 </script>
 
@@ -607,7 +704,8 @@ function renderBanner(checks, cons){
 }
 
 /* ============ 持久化 / 导出 ============ */
-const LS_KEY = 'whiskbroom_check_' + VERSION;
+const LS_KEY = 'whiskbroom_check_state'; // 与版本号解耦，升级不丢已存输入
+const LS_LEGACY = /^whiskbroom_check_v/; // 旧版按版本号存的键：读取兼容，重置时一并清除
 function save(){
   const raw = {};
   for (const p of PARAMS) raw[p.id] = $('#in_'+p.id).value;
@@ -616,6 +714,17 @@ function save(){
 function load(){
   let d = null;
   try{ d = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
+  if (!d){ // 兼容旧版（键含版本号）的存储
+    try{
+      for (let i = localStorage.length - 1; i >= 0; i--){
+        const k = localStorage.key(i);
+        if (k && LS_LEGACY.test(k)){
+          try{ d = JSON.parse(localStorage.getItem(k)); }catch(e){}
+          if (d) break;
+        }
+      }
+    }catch(e){}
+  }
   if (!d) return;
   for (const p of PARAMS){
     if (d.raw && d.raw[p.id] != null && d.raw[p.id] !== '') $('#in_'+p.id).value = d.raw[p.id];
@@ -629,7 +738,14 @@ function load(){
 }
 
 $('#btnReset').addEventListener('click', () => {
-  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  try{
+    const kill = [LS_KEY];
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (k && LS_LEGACY.test(k)) kill.push(k);
+    }
+    kill.forEach(k => localStorage.removeItem(k));
+  }catch(e){}
   location.reload();
 });
 
@@ -648,6 +764,76 @@ $('#btnExport').addEventListener('click', () => {
   ta.style.display = 'block';
   ta.value = JSON.stringify(out, null, 2);
   ta.select();
+});
+
+/* ============ 参数文件（TXT）读写 ============ */
+let toastTimer = 0;
+function toast(msg, isErr){
+  let t = $('#toast');
+  if (!t){ t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, isErr ? 6000 : 3500);
+}
+
+$('#btnExportTxt').addEventListener('click', () => {
+  const inputs = collect();
+  const cnt = Object.keys(inputs).length;
+  if (!cnt){ toast('当前没有输入任何参数，无内容可保存', true); return; }
+  const ts = new Date(), pad = x => String(x).padStart(2, '0');
+  const fname = 'whiskbroom_params_' + ts.getFullYear() + pad(ts.getMonth()+1) + pad(ts.getDate())
+              + '-' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds()) + '.txt';
+  const blob = new Blob([String.fromCharCode(0xFEFF) + paramsToText(inputs, state.unit, state.mode, state.tol, valMap)],
+                        {type:'text/plain;charset=utf-8'}); // 带 BOM：Windows 记事本识别 UTF-8
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('已保存 ' + fname + '（' + cnt + ' 个输入参数）');
+});
+
+$('#btnImportTxt').addEventListener('click', () => $('#fileTxt').click());
+$('#fileTxt').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let text;
+  try{ text = await file.text(); }
+  catch(err){ toast('读取文件失败：' + err.message, true); return; }
+  const r = parseParamText(text);
+  const cnt = Object.keys(r.inputs).length;
+  if (!cnt){
+    toast('文件 ' + file.name + ' 中没有可识别的参数行'
+        + (r.warnings.length ? '（' + r.warnings.length + ' 行被忽略）' : ''), true);
+    return;
+  }
+  for (const p of PARAMS) $('#in_' + p.id).value = ''; // 导入 = 整表替换，未出现的参数恢复自动推导
+  for (const id in r.inputs){
+    const p = PARAMS.find(q => q.id === id);
+    state.unit[id] = r.units[id];
+    const us = $('#un_' + id);
+    if (us) us.value = r.units[id];
+    const [n, f] = UNIT_TYPES[p.ut].units[r.units[id]];
+    $('#in_' + id).value = fmtFull(r.inputs[id] / f);
+  }
+  if (r.mode){ state.mode = r.mode; $('#modeSel').value = r.mode; }
+  if (r.tol != null){
+    const sel = $('#tolSel');
+    sel.value = String(r.tol);
+    if (sel.value === ''){ // 文件容差不在预设档位：吸附到最接近档位
+      let best = sel.options[0];
+      for (const o of sel.options) if (Math.abs(+o.value - r.tol) < Math.abs(+best.value - r.tol)) best = o;
+      sel.value = best.value;
+    }
+    state.tol = +sel.value;
+  }
+  recalc();
+  toast('已从 ' + file.name + ' 读取 ' + cnt + ' 个参数'
+      + (r.warnings.length ? '；' + r.warnings.length + ' 行被忽略，首个：' + r.warnings[0] : ''), r.warnings.length > 0);
 });
 
 /* ============ 启动 ============ */

@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>一起小学：百款经典玩法溯源还原 (Pro版)</title>
+    <style>
+        :root {
+            --primary: #4e8cff;
+            --primary-dark: #357abd;
+            --secondary: #ff9f43;
+            --success: #2ecc71;
+            --danger: #ff4757;
+            --bg: #f0f4f8;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-sub: #7f8c8d;
+            --shadow: 0 10px 20px rgba(0,0,0,0.08);
+            --pop: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text-main); padding-bottom: 80px; overflow-x: hidden; }
+
+        /* 动画定义 */
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes floatUp { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-50px); opacity: 0; } }
+        @keyframes cardFlip { 0% { transform: rotateY(0); } 100% { transform: rotateY(180deg); } }
+
+        /* 头部升级 */
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow); overflow: hidden; }
+        header::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%); animation: rotateBg 20s linear infinite; }
+        @keyframes rotateBg { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        header h1 { font-size: 26px; font-weight: 800; margin-bottom: 8px; position: relative; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        header p { font-size: 14px; opacity: 0.9; position: relative; letter-spacing: 1px; }
+        
+        /* 列表升级 */
+        #game-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 25px; max-width: 1600px; margin: 0 auto; }
+        .game-card { background: var(--card-bg); border-radius: 16px; padding: 20px; box-shadow: var(--shadow); cursor: pointer; transition: all 0.3s var(--pop); border: 1px solid rgba(0,0,0,0.05); position: relative; overflow: hidden; }
+        .game-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--primary); transition: width 0.3s; }
+        .game-card:hover { transform: translateY(-8px); box-shadow: 0 15px 30px rgba(78, 140, 255, 0.15); }
+        .game-card:hover::before { width: 100%; opacity: 0.05; }
+        .game-card h3 { font-size: 18px; margin-bottom: 8px; color: var(--text-main); font-weight: 700; }
+        .game-card .meta { display: inline-block; padding: 4px 8px; background: #eef2f7; color: var(--primary); border-radius: 4px; font-size: 11px; font-weight: 600; margin-bottom: 12px; }
+        .game-card .desc { font-size: 14px; color: var(--text-sub); line-height: 1.6; margin-bottom: 20px; }
+        .play-btn { background: var(--primary); color: white; border: none; padding: 10px 24px; border-radius: 30px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: 0 4px 10px rgba(78, 140, 255, 0.3); transition: all 0.2s; }
+        .play-btn:hover { background: var(--primary-dark); transform: scale(1.05); }
+
+        /* 游戏舞台升级 - 玻璃拟态 */
+        #game-stage { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; animation: popIn 0.3s ease-out; }
+        #stage-inner { width: 95%; max-width: 900px; height: 90vh; background: white; border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        #stage-header { background: linear-gradient(to right, #1e293b, #334155); color: white; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        #stage-title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        #close-btn { background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 20px; cursor: pointer; transition: 0.2s; font-weight: 600; }
+        #close-btn:hover { background: var(--danger); border-color: var(--danger); }
+        #stage-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f8fafc; padding: 30px; overflow-y: auto; position: relative; }
+        
+        /* HUD 升级 */
+        .hud { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.9); backdrop-filter: blur(5px); padding: 12px 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-size: 16px; font-weight: 700; color: var(--text-main); border: 1px solid rgba(0,0,0,0.05); display: flex; gap: 15px; z-index: 10; }
+        .hud span { color: var(--primary); }
+
+        /* 答题弹窗升级 - 游戏内UI风格 */
+        #quiz-modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background: white; padding: 30px; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); z-index: 50; width: 90%; max-width: 450px; text-align: center; opacity: 0; transition: all 0.3s var(--pop); border: 1px solid rgba(0,0,0,0.05); }
+        #quiz-modal.active { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        #quiz-modal h4 { margin-bottom: 20px; font-size: 20px; color: var(--text-main); line-height: 1.4; }
+        #quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .quiz-opt { padding: 15px; background: #f1f5f9; border: 2px solid transparent; border-radius: 12px; cursor: pointer; transition: all 0.2s; font-weight: 600; color: var(--text-sub); font-size: 15px; }
+        .quiz-opt:hover { background: #e2e8f0; transform: translateY(-2px); color: var(--text-main); }
+        .quiz-opt.correct { background: #dcfce7; border-color: var(--success); color: #166534; animation: popIn 0.2s; }
+        .quiz-opt.wrong { background: #fee2e2; border-color: var(--danger); color: #991b1b; animation: shake 0.4s; }
+
+        /* 游戏特定组件升级 */
+        
+        /* 1. 跑酷 */
+        .runner-track { width: 100%; max-width: 800px; height: 250px; background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%); position: relative; overflow: hidden; border-radius: 16px; box-shadow: inset 0 0 20px rgba(0,0,0,0.1); border-bottom: 8px solid #8D6E63; }
+        .runner-player { position: absolute; bottom: 20px; left: 100px; width: 50px; height: 50px; font-size: 40px; display: flex; align-items: center; justify-content: center; transition: transform 0.1s; z-index: 5; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.2)); }
+        .runner-obstacle { position: absolute; bottom: 20px; width: 40px; height: 40px; font-size: 35px; display: flex; align-items: center; justify-content: center; z-index: 4; }
+        .ground-line { position: absolute; bottom: 10px; width: 200%; height: 2px; background: rgba(255,255,255,0.5); animation: scrollGround 1s linear infinite; }
+        @keyframes scrollGround { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+        /* 2. 棋盘 */
+        .board-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; width: 100%; max-width: 400px; margin: 0 auto; position: relative; padding: 10px; background: #fff; border-radius: 16px; box-shadow: var(--shadow); }
+        .board-cell { aspect-ratio: 1; background: #f8fafc; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #94a3b8; transition: all 0.3s; border: 2px dashed #e2e8f0; }
+        .board-cell.start { background: var(--primary); color: white; border-style: solid; }
+        .board-cell.end { background: var(--danger); color: white; border-style: solid; }
+        .board-piece { position: absolute; width: 30px; height: 30px; background: var(--secondary); border-radius: 50%; border: 3px solid white; box-shadow: 0 4px 8px rgba(0,0,0,0.2); transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+
+        /* 3. 对战 */
+        .battle-arena { width: 100%; display: flex; justify-content: space-between; align-items: flex-end; padding: 20px 40px; margin-top: 40px; position: relative; height: 200px; }
+        .battle-char { display: flex; flex-direction: column; align-items: center; width: 120px; position: relative; transition: transform 0.2s; }
+        .battle-avatar { font-size: 64px; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.2)); transition: transform 0.2s; }
+        .battle-hp-box { width: 100%; height: 12px; background: #cbd5e1; border-radius: 10px; margin-top: 10px; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .battle-hp-bar { height: 100%; background: var(--success); width: 100%; transition: width 0.5s ease-out; position: relative; }
+        .battle-hp-bar::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%); animation: shine 2s infinite; }
+        @keyframes shine { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+        .damage-text { position: absolute; color: var(--danger); font-weight: 900; font-size: 24px; animation: floatUp 0.8s forwards; text-shadow: 2px 2px 0px white; z-index: 20; pointer-events: none; }
+        .projectile { position: absolute; font-size: 30px; z-index: 15; transition: left 0.5s linear, top 0.5s linear; }
+
+        /* 4. 配对/翻牌 */
+        .match-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px auto; width: 100%; max-width: 360px; perspective: 1000px; }
+        .match-card-wrapper { aspect-ratio: 1; cursor: pointer; position: relative; transform-style: preserve-3d; transition: transform 0.6s; }
+        .match-card-wrapper.flipped { transform: rotateY(180deg); }
+        .match-card-face { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-size: 16px; }
+        .match-card-front { background: var(--primary); color: white; font-size: 24px; }
+        .match-card-back { background: white; color: var(--text-main); border: 2px solid var(--primary); transform: rotateY(180deg); }
+
+        /* 5. 射击 */
+        .shoot-area { width: 100%; max-width: 600px; height: 400px; background: radial-gradient(circle, #1e293b 0%, #0f172a 100%); position: relative; overflow: hidden; border-radius: 16px; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); cursor: crosshair; }
+        .shoot-target { position: absolute; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; background: radial-gradient(circle at 30% 30%, #fff, var(--secondary)); box-shadow: 0 0 15px var(--secondary); cursor: pointer; animation: float 3s ease-in-out infinite; user-select: none; transition: transform 0.1s; }
+        .shoot-target:active { transform: scale(0.9); }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .crosshair { position: absolute; width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); z-index: 10; }
+
+        /* 6. 排序 */
+        .sort-container { display: flex; gap: 15px; margin: 30px 0; justify-content: center; flex-wrap: wrap; }
+        .sort-item { width: 60px; height: 60px; background: white; border: 2px solid #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: var(--text-main); cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: all 0.3s var(--pop); }
+        .sort-item:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-5px); }
+        .sort-item.active { border-color: var(--secondary); background: #fff7ed; color: var(--secondary); transform: scale(1.1); box-shadow: 0 0 0 4px rgba(255, 159, 67, 0.2); }
+
+        /* 7. 进度条模拟 */
+        .sim-container { width: 100%; max-width: 500px; text-align: center; }
+        .sim-track { width: 100%; height: 30px; background: #e2e8f0; border-radius: 15px; margin: 40px 0; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .sim-progress { height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); width: 0%; transition: width 0.6s var(--pop); border-radius: 15px; position: relative; }
+        .sim-progress::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 20px; background: rgba(255,255,255,0.4); blur: 5px; }
+
+        /* 通用按钮升级 */
+        .general-btn { padding: 12px 30px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border: none; border-radius: 12px; cursor: pointer; font-size: 16px; font-weight: 600; box-shadow: 0 4px 15px rgba(78, 140, 255, 0.3); transition: transform 0.1s; }
+        .general-btn:active { transform: scale(0.95); }
+        .general-btn:disabled { background: #cbd5e1; cursor: not-allowed; box-shadow: none; }
+        .info-text { text-align: center; color: var(--text-sub); margin-bottom: 20px; font-size: 15px; max-width: 500px; }
+
+        /* 工具类 */
+        .shake { animation: shake 0.5s; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎮 一起小学 Pro</h1>
+        <p>沉浸式还原百款经典玩法 · 核心循环深度优化</p>
+    </header>
+
+    <div id="game-list"></div>
+
+    <div id="game-stage">
+        <div id="stage-inner">
+            <div id="stage-header">
+                <span id="stage-title">游戏标题</span>
+                <button id="close-btn" onclick="closeGame()">退出游戏</button>
+            </div>
+            <div id="stage-body"></div>
+            
+            <!-- 答题模态框 -->
+            <div id="quiz-modal">
+                <h4 id="quiz-question"></h4>
+                <div id="quiz-options"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ==========================================
+// 核心数据与工具
+// ==========================================
+const QUIZ_BANK = {
+    en: [
+        {q: "Apple 的意思是？", opts: ["苹果", "香蕉", "橘子", "梨"], a: 0},
+        {q: "Book 的意思是？", opts: ["笔", "书", "桌子", "椅子"], a: 1},
+        {q: "Cat 的意思是？", opts: ["狗", "猪", "猫", "鸟"], a: 2},
+        {q: "Run 的意思是？", opts: ["走", "跳", "跑", "飞"], a: 2},
+        {q: "Happy 的意思是？", opts: ["伤心", "生气", "开心", "害怕"], a: 2}
+    ],
+    math: [
+        {q: "7 + 8 = ?", opts: ["13", "14", "15", "16"], a: 2},
+        {q: "9 × 3 = ?", opts: ["21", "24", "27", "30"], a: 2},
+        {q: "45 ÷ 9 = ?", opts: ["4", "5", "6", "7"], a: 1},
+        {q: "12 - 7 = ?", opts: ["3", "4", "5", "6"], a: 2},
+        {q: "6 × 7 = ?", opts: ["36", "42", "48", "54"], a: 1}
+    ],
+    cn: [
+        {q: "‘亡羊补__’ 填什么字？", opts: ["牢", "劳", "涝", "老"], a: 0},
+        {q: "《静夜思》作者是？", opts: ["杜甫", "李白", "王维", "白居易"], a: 1},
+        {q: "‘春眠不觉__’ 填什么字？", opts: ["晓", "小", "笑", "宵"], a: 0}
+    ],
+    science: [
+        {q: "地球的卫星是？", opts: ["太阳", "月亮", "金星", "火星"], a: 1},
+        {q: "光合作用发生在植物的？", opts: ["根", "茎", "叶", "花"], a: 2}
+    ]
+};
+
+function getRandomQuiz(type = 'math') {
+    const bank = QUIZ_BANK[type] || QUIZ_BANK.math;
+    return bank[Math.floor(Math.random() * bank.length)];
+}
+
+const GAMES = [
+    // 第一批 (1-8)
+    {id: 1, name: "酷跑学单词", type: "runner", subject: "en", desc: "横版跑酷，遇到高墙需答对英语单词才能跳跃越过高墙。", lineage: "动作类→平台跑酷"},
+    {id: 2, name: "走遍美国学英语", type: "board", subject: "en", desc: "大富翁式棋盘，掷骰子移动，停在城市格子触发听力/词汇题。", lineage: "桌面策略→大富翁"},
+    {id: 3, name: "PK竞技场", type: "battle", subject: "math", desc: "携带守护兽1v1对战，轮流答题，答对攻击对方，答错被攻击。", lineage: "角色扮演→宠物对战"},
+    {id: 4, name: "通天塔", type: "sim", subject: "math", desc: "PVE爬塔闯关，答对当前层题目进入下一层，每10层有BOSS。", lineage: "角色扮演→爬塔闯关"},
+    {id: 5, name: "成长世界", type: "sim", subject: "en", desc: "模拟经营农场，完成学习任务加速作物生长，收获资源。", lineage: "模拟类→农场养成"},
+    {id: 6, name: "打年兽", type: "sim", subject: "math", desc: "节日合作玩法，通过答题收集鞭炮，累计伤害击败年兽BOSS。", lineage: "合作类→多人BOSS战"},
+    {id: 7, name: "单词消消乐", type: "match", subject: "en", desc: "消除类单词记忆，点击配对的单词和释义方块进行消除。", lineage: "益智类→消除类"},
+    {id: 8, name: "速算打地鼠", type: "shoot", subject: "math", desc: "地鼠头上显示算术题，快速计算并点击对应答案的地鼠。", lineage: "动作/益智→打地鼠"},
+    
+    // 第二批 (9-16)
+    {id: 9, name: "捕鱼达人学单词", type: "shoot", subject: "en", desc: "海底捕鱼视角，根据题目要求射击带有正确释义的鱼群。", lineage: "射击类→街机捕鱼"},
+    {id: 10, name: "记忆翻牌", type: "match", subject: "en", desc: "翻牌找配对，一张单词一张释义，全部翻开配对即胜利。", lineage: "益智类→记忆配对"},
+    {id: 11, name: "守卫农场", type: "battle", subject: "math", desc: "塔防玩法，通过速算获取阳光，种植植物抵御怪物。", lineage: "策略类→塔防"},
+    {id: 12, name: "字母俄罗斯方块", type: "sort", subject: "en", desc: "下落字母方块，填入残缺单词的正确位置进行消除。", lineage: "益智类→下落式消除"},
+    {id: 13, name: "趣味砸金蛋", type: "pure_quiz", subject: "cn", desc: "抽奖玩法，砸开金蛋回答语文题，答对获得丰厚奖励。", lineage: "休闲随机→盲盒抽奖"},
+    {id: 14, name: "语法节奏大师", type: "pure_quiz", subject: "en", desc: "音乐节奏下落，点击音符完成句子组合，中间穿插语法题。", lineage: "音乐动作→下落式音游"},
+    {id: 15, name: "迷宫寻宝", type: "board", subject: "science", desc: "迷宫探索，遇到门卫需回答科学题才能开门通过。", lineage: "冒险解谜→迷宫探索"},
+    {id: 16, name: "知识大转盘", type: "pure_quiz", subject: "cn", desc: "转动转盘停在哪个学科扇区，就回答对应类型的题目。", lineage: "休闲派对→轮盘抽奖"},
+    
+    // 第三批 (17-20)
+    {id: 17, name: "拯救苹果", type: "pure_quiz", subject: "en", desc: "猜单词游戏，拼错字母苹果掉落叶子，叶子掉光失败。", lineage: "益智类→猜词"},
+    {id: 18, name: "成语填字宫", type: "sort", subject: "cn", desc: "数独与填字结合，根据横竖线索从字库选择汉字填入。", lineage: "益智类→填字格子"},
+    {id: 19, name: "物理弹珠台", type: "pure_quiz", subject: "science", desc: "控制弹珠撞击科学模块，触发物理常识题。", lineage: "动作休闲→弹珠台"},
+    {id: 20, name: "集换式卡牌对战", type: "battle", subject: "cn", desc: "打出卡牌需回答卡牌附带知识题，答对触发攻击效果。", lineage: "策略卡牌→集换式卡牌"},
+    
+    // 第四批 (21-28)
+    {id: 21, name: "像素鸟学英语", type: "runner", subject: "en", desc: "点击飞行，穿过管道时需答对英语题获得护盾。", lineage: "动作类→点击飞行"},
+    {id: 22, name: "打砖块拼单词", type: "shoot", subject: "en", desc: "控制挡板弹球击落字母砖块，组合成正确单词。", lineage: "动作益智→打砖块"},
+    {id: 23, name: "连连看记单词", type: "match", subject: "en", desc: "经典连连看，连接单词和释义方块进行消除。", lineage: "益智类→连连看"},
+    {id: 24, name: "太空射击答题", type: "shoot", subject: "math", desc: "纵版射击，射击带有算式正确答案的陨石。", lineage: "射击类→纵版射击"},
+    {id: 25, name: "飞行棋闯关", type: "board", subject: "en", desc: "掷骰子移动，走到特定格子答题，先到终点者胜。", lineage: "桌面策略→飞行棋"},
+    {id: 26, name: "接水果算术", type: "shoot", subject: "math", desc: "接住数字之和等于目标数字的水果组合。", lineage: "动作益智→接物"},
+    {id: 27, name: "青蛙过河答题", type: "runner", subject: "science", desc: "跳跃过河，每跳一步答对科学题才能继续前进。", lineage: "动作类→过马路"},
+    {id: 28, name: "七彩音符答题", type: "pure_quiz", subject: "en", desc: "音游玩法，完成旋律后回答音乐/英语相关题目。", lineage: "音乐动作→下落式音游"},
+    
+    // 第五批 (29-36)
+    {id: 29, name: "贪吃蛇字母", type: "runner", subject: "en", desc: "贪吃蛇玩法，按单词字母顺序吃对应字母食物。", lineage: "动作类→贪吃蛇"},
+    {id: 30, name: "找不同学英语", type: "pure_quiz", subject: "en", desc: "找两图不同，找到后弹出英语单词学习卡片答题。", lineage: "益智类→找不同"},
+    {id: 31, name: "数字推箱子", type: "sort", subject: "math", desc: "推箱子玩法，将数字箱推到等式对应位置完成等式。", lineage: "益智策略→推箱子"},
+    {id: 32, name: "华容道拼图", type: "sort", subject: "math", desc: "滑块拼图，按照特定数学顺序排列数字方块。", lineage: "益智类→滑块拼图"},
+    {id: 33, name: "弹球消砖块", type: "shoot", subject: "cn", desc: "弹球击中砖块触发语文题，答对砖块消除。", lineage: "动作休闲→弹珠台"},
+    {id: 34, name: "跳跃答题", type: "runner", subject: "en", desc: "垂直跳跃，碰到题目气泡答对获得向上弹射Buff。", lineage: "动作类→垂直跳跃"},
+    {id: 35, name: "限时连连看", type: "match", subject: "en", desc: "方块向中心收缩，限时内消除所有单词配对。", lineage: "益智类→限时消除"},
+    {id: 36, name: "疯狂投篮", type: "shoot", subject: "math", desc: "计算篮球算式，瞄准对应答案的篮筐投篮。", lineage: "体育动作→投篮"},
+    
+    // 第六批 (37-44)
+    {id: 37, name: "成语接龙", type: "sort", subject: "cn", desc: "选择首尾字相接的成语进行接龙。", lineage: "益智文字→成语接龙"},
+    {id: 38, name: "单词接龙", type: "sort", subject: "en", desc: "选择首尾字母相接的单词进行接龙。", lineage: "益智文字→单词接龙"},
+    {id: 39, name: "图形拼图", type: "sort", subject: "math", desc: "七巧板拼图，完成后回答几何知识题。", lineage: "益智类→七巧板"},
+    {id: 40, name: "颜色反应测试", type: "pure_quiz", subject: "en", desc: "Stroop测试，选择字体颜色而非词语含义。", lineage: "益智反应→Stroop干扰"},
+    {id: 41, name: "逻辑推理数独", type: "sort", subject: "math", desc: "数独玩法，填数字前需答对数学应用题解锁。", lineage: "益智逻辑→数独"},
+    {id: 42, name: "空间旋转", type: "pure_quiz", subject: "math", desc: "3D几何体旋转，找出正确的正面视图。", lineage: "益智类→空间思维"},
+    {id: 43, name: "数字魔方", type: "sort", subject: "math", desc: "魔方面块贴数字，旋转还原使各面数字和正确。", lineage: "益智类→魔方"},
+    {id: 44, name: "算术泡泡龙", type: "shoot", subject: "math", desc: "发射算式泡泡，匹配上方带有答案的泡泡消除。", lineage: "益智射击→泡泡龙"},
+    
+    // 第七批 (45-52)
+    {id: 45, name: "语文填空游戏", type: "pure_quiz", subject: "cn", desc: "古诗词填空，从汉字库选择正确字填入。", lineage: "益智文字→填空"},
+    {id: 46, name: "英语听写", type: "pure_quiz", subject: "en", desc: "播放音频，在输入框拼写听到的单词。", lineage: "益智语言→听写"},
+    {id: 47, name: "科学实验模拟", type: "sim", subject: "science", desc: "选择器材组装装置，每步触发科学原理题。", lineage: "模拟类→实验模拟"},
+    {id: 48, name: "地理拼图", type: "sort", subject: "science", desc: "将省份拼图块拖到正确位置，并回答省会题。", lineage: "益智类→地图拼图"},
+    {id: 49, name: "历史时间线", type: "sort", subject: "cn", desc: "将历史事件卡片拖拽到时间轴正确年份。", lineage: "益智策略→时间线排序"},
+    {id: 50, name: "数学迷宫", type: "board", subject: "math", desc: "迷宫岔路遇数学题，答对开门，找出口。", lineage: "冒险益智→数字迷宫"},
+    {id: 51, name: "单词火车", type: "sort", subject: "en", desc: "拖拽车厢重排字母，组成正确单词。", lineage: "益智类→排序拼图"},
+    {id: 52, name: "知识大冒险", type: "board", subject: "cn", desc: "大地图掷骰子移动，各种事件格触发答题。", lineage: "桌面策略→派对冒险"},
+    
+    // 第八批 (53-60)
+    {id: 53, name: "速算赛车", type: "runner", subject: "math", desc: "切换车道驶过算式结果等于目标答案的车道。", lineage: "竞速动作→赛车"},
+    {id: 54, name: "成语拼图", type: "sort", subject: "cn", desc: "拖拽散乱汉字组成四字成语。", lineage: "益智类→文字拼图"},
+    {id: 55, name: "英语听力泡泡", type: "shoot", subject: "en", desc: "播放听力，快速点击下落的匹配单词泡泡。", lineage: "动作益智→听力反应"},
+    {id: 56, name: "几何拼图", type: "sort", subject: "math", desc: "用碎片拼合指定几何图形，回答属性题。", lineage: "益智类→几何拼图"},
+    {id: 57, name: "知识气球", type: "shoot", subject: "cn", desc: "射击符合题目分类条件（如唐朝诗人）的气球。", lineage: "射击休闲→射气球"},
+    {id: 58, name: "飞行棋知识版", type: "board", subject: "science", desc: "两机同格触发知识对决，答对留下答错后退。", lineage: "桌面策略→飞行棋PK"},
+    {id: 59, name: "弹球消消乐", type: "shoot", subject: "cn", desc: "弹球击中砖块触发题目，答对消除。", lineage: "动作益智→弹球消除"},
+    {id: 60, name: "节奏拼词", type: "pure_quiz", subject: "en", desc: "音游收集字母，组成完整单词消除得分。", lineage: "音乐益智→节奏拼词"},
+    
+    // 第九批 (61-68)
+    {id: 61, name: "诗词飞花令", type: "pure_quiz", subject: "cn", desc: "给出关键字，轮流选出包含该字的诗句。", lineage: "益智文字→飞花令"},
+    {id: 62, name: "英语语法俄罗斯方块", type: "sort", subject: "en", desc: "同词性方块堆叠一列，造句语法正确可消除。", lineage: "益智类→语法俄罗斯方块"},
+    {id: 63, name: "数学连线", type: "match", subject: "math", desc: "连接数字和运算符节点，组成正确等式。", lineage: "益智类→连线"},
+    {id: 64, name: "知识大转盘", type: "pure_quiz", subject: "science", desc: "转盘停在哪回答哪科题，答对获得学豆。", lineage: "休闲随机→大转盘"},
+    {id: 65, name: "诗词拼图", type: "sort", subject: "cn", desc: "拖拽字块重排打乱的古诗句子。", lineage: "益智文字→诗词排序"},
+    {id: 66, name: "单词泡泡射击", type: "shoot", subject: "en", desc: "按拼写顺序射击对应字母泡泡拼出单词。", lineage: "益智射击→泡泡射击"},
+    {id: 67, name: "跑酷学成语", type: "runner", subject: "cn", desc: "跑酷遇障碍弹出成语填空，答对跳跃。", lineage: "动作类→跑酷填空"},
+    {id: 68, name: "农场种植学英语", type: "sim", subject: "en", desc: "选正确单词卡作种子种对应作物，答错长变异。", lineage: "模拟类→农场种植"},
+    
+    // 第十批 (69-76)
+    {id: 69, name: "答题钓鱼", type: "sim", subject: "science", desc: "咬钩后回答鱼类生物知识题，答对钓上。", lineage: "休闲模拟→钓鱼"},
+    {id: 70, name: "记忆翻牌数学版", type: "match", subject: "math", desc: "翻牌配对，算式与答案匹配消除。", lineage: "益智类→记忆翻牌"},
+    {id: 71, name: "打地鼠英语版", type: "shoot", subject: "en", desc: "根据释义快速点击对应单词地鼠。", lineage: "动作益智→打地鼠"},
+    {id: 72, name: "消消乐成语版", type: "match", subject: "cn", desc: "消除指定汉字方块补全成语。", lineage: "益智类→三消变体"},
+    {id: 73, name: "塔防算术", type: "battle", subject: "math", desc: "答题获取能量币建造防御塔抵御怪物。", lineage: "策略类→塔防"},
+    {id: 74, name: "弹珠台科学版", type: "pure_quiz", subject: "science", desc: "撞击区域触发科学题，答对得分翻倍。", lineage: "动作休闲→弹珠台"},
+    {id: 75, name: "音乐节奏单词版", type: "pure_quiz", subject: "en", desc: "节奏点击收集字母组成单词。", lineage: "音乐动作→节奏拼词"},
+    {id: 76, name: "迷宫寻宝数学版", type: "board", subject: "math", desc: "计算墙壁算式选对应数字门打开。", lineage: "冒险益智→数学迷宫"},
+    
+    // 第十一批 (77-84)
+    {id: 77, name: "卡牌对战语文版", type: "battle", subject: "cn", desc: "打出诗词卡回答语文题触发攻击。", lineage: "策略卡牌→语文卡牌"},
+    {id: 78, name: "大富翁英语版", type: "board", subject: "en", desc: "停留在英语场景格触发对话题，获地契。", lineage: "桌面策略→大富翁英语"},
+    {id: 79, name: "捕鱼达人数学版", type: "shoot", subject: "math", desc: "射击算式结果等于目标答案的鱼。", lineage: "射击类→捕鱼数学"},
+    {id: 80, name: "砸金蛋科学版", type: "pure_quiz", subject: "science", desc: "砸蛋开出科学题，答对获仪器碎片。", lineage: "休闲随机→砸金蛋科学"},
+    {id: 81, name: "转盘答题语文版", type: "pure_quiz", subject: "cn", desc: "转盘停在语文题型扇区回答对应题。", lineage: "休闲派对→转盘语文"},
+    {id: 82, name: "猜词游戏变体", type: "pure_quiz", subject: "cn", desc: "猜成语/词语，填字试错，苹果掉落。", lineage: "益智类→猜词变体"},
+    {id: 83, name: "填字游戏数学版", type: "sort", subject: "math", desc: "交叉网格填数学术语或算式结果。", lineage: "益智类→填字数学"},
+    {id: 84, name: "弹珠台历史版", type: "pure_quiz", subject: "cn", desc: "撞击朝代区域回答该朝代历史题。", lineage: "动作休闲→弹珠台历史"},
+    
+    // 第十二批 (85-92)
+    {id: 85, name: "卡牌对战英语版", type: "battle", subject: "en", desc: "卡牌按词性分类，答题触发攻击，词性相克。", lineage: "策略卡牌→英语卡牌"},
+    {id: 86, name: "像素鸟数学版", type: "runner", subject: "math", desc: "选择管道上算式结果等于目标的缺口穿过。", lineage: "动作类→像素鸟数学"},
+    {id: 87, name: "打砖块英语版", type: "shoot", subject: "en", desc: "击落砖块组成语法正确的句子消除。", lineage: "动作益智→打砖块英语"},
+    {id: 88, name: "连连看成语版", type: "match", subject: "cn", desc: "配对成语的前半句和后半句消除。", lineage: "益智类→连连看成语"},
+    {id: 89, name: "太空射击英语版", type: "shoot", subject: "en", desc: "播放听力射击对应单词陨石。", lineage: "射击类→太空射击英语"},
+    {id: 90, name: "飞行棋科学版", type: "board", subject: "science", desc: "停场景格答科学题，答对前进答错后退。", lineage: "桌面策略→飞行棋科学"},
+    {id: 91, name: "接水果英语版", type: "shoot", subject: "en", desc: "接住与篮子释义匹配的单词水果。", lineage: "动作益智→接水果英语"},
+    {id: 92, name: "青蛙过河语文版", type: "runner", subject: "cn", desc: "跳跃触发诗词填空，答错停留。", lineage: "动作类→青蛙过河语文"},
+    
+    // 第十三至十四批 (93-100)
+    {id: 93, name: "贪吃蛇语文版", type: "runner", subject: "cn", desc: "按诗句顺序吃掉对应汉字食物。", lineage: "动作类→贪吃蛇语文"},
+    {id: 94, name: "找不同数学版", type: "pure_quiz", subject: "math", desc: "找几何图不同，回答几何知识题。", lineage: "益智类→找不同几何"},
+    {id: 95, name: "知识大冒险数学版", type: "board", subject: "math", desc: "大地图全数学题型事件格，竞速通关。", lineage: "桌面策略→大冒险数学"},
+    {id: 96, name: "速算赛车英语版", type: "runner", subject: "en", desc: "听英语音频，切换车道驶过匹配单词。", lineage: "竞速动作→赛车英语"},
+    {id: 97, name: "成语拼图进阶版", type: "sort", subject: "cn", desc: "从干扰字中找4字拼成语，限时挑战。", lineage: "益智类→成语拼图进阶"},
+    {id: 98, name: "化学元素消除", type: "match", subject: "science", desc: "三消化学元素方块，消除时答题。", lineage: "益智类→三消化学"},
+    {id: 99, name: "生物分类游戏", type: "sort", subject: "science", desc: "拖拽动植物卡片到正确分类框。", lineage: "益智策略→分类"},
+    {id: 100, name: "物理实验台进阶版", type: "sim", subject: "science", desc: "选择器材调节参数做实验，答物理原理题。", lineage: "模拟类→物理实验"}
+];
+
+
+// ==========================================
+// 渲染列表
+// ==========================================
+function renderList() {
+    const list = document.getElementById('game-list');
+    list.innerHTML = GAMES.map(g => `
+        <div class="game-card" onclick="startGame(${g.id})">
+            <div>
+                <h3>${g.id}. ${g.name}</h3>
+                <div class="meta">${g.lineage}</div>
+                <div class="desc">${g.desc}</div>
+            </div>
+            <button class="play-btn">立即开始</button>
+        </div>
+    `).join('');
+}
+
+// ==========================================
+// 游戏引擎核心
+// ==========================================
+let currentGame = null;
+let gameState = {};
+let gameLoops = []; // 存储所有 requestAnimationFrame ID，用于关闭游戏时清理
+
+function startGame(id) {
+    currentGame = GAMES.find(g => g.id === id);
+    if (!currentGame) return;
+    
+    const stage = document.getElementById('game-stage');
+    stage.style.display = 'flex';
+    document.getElementById('stage-title').innerText = `${currentGame.id}. ${currentGame.name}`;
+    
+    const body = document.getElementById('stage-body');
+    body.innerHTML = '';
+    
+    gameState = { score: 0, progress: 0, lives: 3, subject: currentGame.subject, active: true };
+    
+    // 路由到具体引擎
+    switch(currentGame.type) {
+        case 'runner': initRunner(body); break;
+        case 'board': initBoard(body); break;
+        case 'battle': initBattle(body); break;
+        case 'sim': initSim(body); break;
+        case 'match': initMatch(body); break;
+        case 'shoot': initShoot(body); break;
+        case 'sort': initSort(body); break;
+        case 'pure_quiz': initPureQuiz(body); break;
+    }
+}
+
+function closeGame() {
+    gameState.active = false; // 停止所有循环
+    gameLoops.forEach(id => cancelAnimationFrame(id));
+    gameLoops = [];
+    document.getElementById('game-stage').style.display = 'none';
+    currentGame = null;
+    document.getElementById('quiz-modal').classList.remove('active');
+    document.getElementById('quiz-modal').style.display = 'none';
+}
+
+// ==========================================
+// 通用反馈系统
+// ==========================================
+function showFloatingText(text, parent, color = '#ff4757') {
+    const el = document.createElement('div');
+    el.className = 'damage-text';
+    el.innerText = text;
+    el.style.color = color;
+    // 随机一点偏移
+    const randomX = Math.random() * 40 - 20;
+    const rect = parent.getBoundingClientRect();
+    // 如果父容器是relative，我们需要计算相对位置
+    el.style.left = '50%';
+    el.style.top = '0';
+    el.style.transform = `translateX(${randomX}px)`;
+    parent.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+}
+
+function shakeElement(el) {
+    el.classList.remove('shake');
+    void el.offsetWidth; // trigger reflow
+    el.classList.add('shake');
+}
+
+// ==========================================
+// 答题系统 (非阻塞式设计优化)
+// ==========================================
+function showQuiz(onAnswer) {
+    if (!gameState.active) return;
+    const quiz = getRandomQuiz(gameState.subject);
+    const modal = document.getElementById('quiz-modal');
+    const qText = document.getElementById('quiz-question');
+    const optsDiv = document.getElementById('quiz-options');
+    
+    qText.innerText = quiz.q;
+    optsDiv.innerHTML = '';
+    
+    modal.style.display = 'block';
+    // 稍微延迟加active类以触发动画
+    setTimeout(() => modal.classList.add('active'), 10);
+    
+    quiz.opts.forEach((opt, idx) => {
+        const btn = document.createElement('div');
+        btn.className = 'quiz-opt';
+        btn.innerText = opt;
+        btn.onclick = () => {
+            // 锁定防止重复点击
+            if (btn.dataset.locked) return;
+            Array.from(optsDiv.children).forEach(c => c.dataset.locked = 'true');
+
+            if (idx === quiz.a) {
+                btn.classList.add('correct');
+                setTimeout(() => {
+                    modal.classList.remove('active');
+                    setTimeout(() => {
+                        modal.style.display = 'none';
+                        if (gameState.active) onAnswer(true);
+                    }, 300);
+                }, 500);
+            } else {
+                btn.classList.add('wrong');
+                setTimeout(() => {
+                    modal.classList.remove('active');
+                    setTimeout(() => {
+                        modal.style.display = 'none';
+                        if (gameState.active) onAnswer(false);
+                    }, 300);
+                }, 800);
+            }
+        };
+        optsDiv.appendChild(btn);
+    });
+}
+
+// ==========================================
+// 游戏引擎升级版
+// ==========================================
+
+// 1. 跑酷引擎 - 物理重力版
+function initRunner(body) {
+    body.innerHTML = `
+        <div class="info-text">点击或按空格跳跃。遇到高墙会触发题目挑战！</div>
+        <div class="runner-track" id="track">
+            <div class="ground-line"></div>
+            <div class="runner-player" id="player">🏃</div>
+        </div>
+        <div class="hud" id="hud">得分: <span id="score-val">0</span></div>
+    `;
+    
+    const track = document.getElementById('track');
+    const player = document.getElementById('player');
+    const hudScore = document.getElementById('score-val');
+    
+    // 物理变量
+    let phy = { y: 0, vy: 0, g: 0.8, jumpPower: -15, grounded: true };
+    let obstacles = [];
+    let gameSpeed = 6;
+    let spawnTimer = 0;
+    let score = 0;
+    
+    function jump() {
+        if (phy.grounded && gameState.active) {
+            phy.vy = phy.jumpPower;
+            phy.grounded = false;
+            player.style.transform = 'rotate(-10deg) scale(1.1)';
+            setTimeout(() => player.style.transform = 'rotate(0) scale(1)', 200);
+        }
+    }
+    
+    window.addEventListener('keydown', (e) => { if(e.code === 'Space') jump(); });
+    track.addEventListener('mousedown', jump);
+    track.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
+
+    function gameLoop() {
+        if (!gameState.active) return;
+        
+        // 1. 物理计算
+        phy.vy += phy.g;
+        phy.y += phy.vy;
+        
+        if (phy.y >= 0) { // 0是地面
+            phy.y = 0;
+            phy.vy = 0;
+            phy.grounded = true;
+        }
+        
+        player.style.bottom = (20 + phy.y) + 'px'; // 20是基础bottom
+
+        // 2. 障碍物生成
+        spawnTimer--;
+        if (spawnTimer <= 0) {
+            spawnTimer = Math.random() * 100 + 100; // 随机间隔
+            const obs = document.createElement('div');
+            obs.className = 'runner-obstacle';
+            obs.innerText = Math.random() > 0.5 ? '🧱' : '🌵';
+            obs.style.right = '-50px';
+            obs.dataset.passed = "false"; // 答题标记
+            track.appendChild(obs);
+            obstacles.push({ el: obs, x: -50 });
+        }
+
+        // 3. 障碍物移动与碰撞
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            let obs = obstacles[i];
+            obs.x += gameSpeed;
+            obs.el.style.right = obs.x + 'px';
+            
+            // AABB 碰撞检测简化版
+            // Player is at fixed left 100px. Obstacle right means distance from right edge.
+            // Track width needed for precise calc, but let's assume standard overlap
+            // Obstacle appears at right, moves left. 
+            // Distance from right = obs.x. Distance from left = TrackWidth - obs.x - 40(obsWidth).
+            // Let's use offset from left directly for simplicity in DOM logic:
+            // We set 'right', so let's calc based on track width
+            const trackRect = track.getBoundingClientRect();
+            const obsLeft = trackRect.width - obs.x - 40;
+            
+            // Player X range: 100 ~ 150. Obstacle X range: obsLeft ~ obsLeft+40.
+            // Y overlap: Player bottom 20~70. Obs bottom 20~60.
+            if (obsLeft < 140 && obsLeft > 80 && phy.y < 40 && obs.el.dataset.quizing !== "true") {
+                // 碰撞发生，触发答题
+                obs.el.dataset.quizing = "true"; // 防止重复触发
+                
+                // 暂停移动效果
+                gameSpeed = 0;
+                
+                showQuiz((correct) => {
+                    if (correct) {
+                        // 跳过障碍
+                        obs.el.style.transform = 'scale(0) rotate(180deg)';
+                        obs.el.style.opacity = '0';
+                        setTimeout(() => obs.el.remove(), 500);
+                        score += 10;
+                        hudScore.innerText = score;
+                        showFloatingText("+10", track, "#2ecc71");
+                    } else {
+                        // 游戏结束
+                        gameState.active = false;
+                        player.style.transform = 'rotate(90deg)';
+                        endGame('撞到障碍物了！');
+                        return;
+                    }
+                    // 恢复速度
+                    gameSpeed = 6;
+                });
+            }
+
+            // 移除屏幕外的障碍
+            if (obs.x > trackRect.width + 50) {
+                obs.el.remove();
+                obstacles.splice(i, 1);
+                score++;
+                hudScore.innerText = score;
+            }
+        }
+        
+        const loopId = requestAnimationFrame(gameLoop);
+        gameLoops.push(loopId);
+    }
+    
+    gameLoop();
+}
+
+// 2. 棋盘引擎 - 平滑移动版
+function initBoard(body) {
+    const size = 25;
+    let html = `<div class="info-text">掷骰子冒险，答题获得额外步数！</div><div class="board-grid">`;
+    for(let i=0; i<size; i++) {
+        let cls = 'board-cell';
+        if(i===0) cls += ' start';
+        if(i===24) cls += ' end';
+        html += `<div class="${cls}" id="cell-${i}"></div>`;
+    }
+    html += `</div><div class="hud" id="hud">位置: <span id="pos-val">1</span></div><button class="general-btn" id="dice-btn">🎲 掷骰子</button>`;
+    body.innerHTML = html;
+    
+    // 棋子
+    const piece = document.createElement('div');
+    piece.className = 'board-piece';
+    piece.innerText = '🚀';
+    document.querySelector('.board-grid').appendChild(piece);
+    
+    // 初始化位置
+    function updatePiecePos(idx) {
+        const cell = document.getElementById(`cell-${idx}`);
+        // 计算相对坐标
+        const gridRect = document.querySelector('.board-grid').getBoundingClientRect();
+        const cellRect = cell.getBoundingClientRect();
+        
+        // 相对父容器的位置
+        piece.style.left = (cellRect.left - gridRect.left + cellRect.width/2 - 15) + 'px';
+        piece.style.top = (cellRect.top - gridRect.top + cellRect.height/2 - 15) + 'px';
+    }
+    
+    // 等待渲染完成初始位置
+    setTimeout(() => updatePiecePos(0), 100);
+    window.addEventListener('resize', () => updatePiecePos(gameState.pos || 0));
+
+    let pos = 0;
+    
+    document.getElementById('dice-btn').onclick = () => {
+        if(document.getElementById('dice-btn').disabled) return;
+        document.getElementById('dice-btn').disabled = true;
+        
+        const step = Math.floor(Math.random() * 3) + 1; // 1-3步，加快节奏
+        let currentStep = 0;
+        
+        const moveInterval = setInterval(() => {
+            currentStep++;
+            pos++;
+            if (pos >= size) {
+                clearInterval(moveInterval);
+                endGame('到达终点！挑战成功！');
+                return;
+            }
+            updatePiecePos(pos);
+            document.getElementById('pos-val').innerText = pos + 1;
+            
+            if (currentStep >= step) {
+                clearInterval(moveInterval);
+                // 触发事件
+                if (Math.random() > 0.3) {
+                    showQuiz((correct) => {
+                        if (correct) {
+                            showFloatingText("步数+1", document.querySelector('.board-grid'));
+                            pos = Math.min(size-1, pos + 1);
+                            updatePiecePos(pos);
+                        } else {
+                            showFloatingText("步数-1", document.querySelector('.board-grid'), '#ff4757');
+                            pos = Math.max(0, pos - 1);
+                            updatePiecePos(pos);
+                        }
+                        document.getElementById('dice-btn').disabled = false;
+                    });
+                } else {
+                    document.getElementById('dice-btn').disabled = false;
+                }
+            }
+        }, 300);
+    };
+    gameState.pos = pos;
+}
+
+// 3. 对战引擎 - 动画反馈版
+function initBattle(body) {
+    body.innerHTML = `
+        <div class="info-text">回合制战斗，答题造成暴击！</div>
+        <div class="battle-arena" id="arena">
+            <div class="battle-char" id="p-char">
+                <div class="battle-avatar">🧙‍♂️</div>
+                <div class="battle-hp-box"><div class="battle-hp-bar" id="p-hp"></div></div>
+            </div>
+            <div class="battle-char" id="e-char">
+                <div class="battle-avatar">👾</div>
+                <div class="battle-hp-box"><div class="battle-hp-bar" id="e-hp" style="background:#ff4757"></div></div>
+            </div>
+        </div>
+        <button class="general-btn" id="atk-btn">⚔️ 发动攻击</button>
+    `;
+    
+    let pHp = 100, eHp = 100;
+    const pChar = document.getElementById('p-char');
+    const eChar = document.getElementById('e-char');
+    
+    function updateHp() {
+        document.getElementById('p-hp').style.width = pHp + '%';
+        document.getElementById('e-hp').style.width = eHp + '%';
+    }
+    
+    document.getElementById('atk-btn').onclick = () => {
+        document.getElementById('atk-btn').disabled = true;
+        
+        // 玩家冲锋动画
+        pChar.style.transform = 'translateX(50px)';
+        setTimeout(() => pChar.style.transform = 'translateX(0)', 200);
+
+        showQuiz((correct) => {
+            if (correct) {
+                // 命中
+                eHp -= 25;
+                showFloatingText("-25", eChar);
+                shakeElement(eChar);
+            } else {
+                // 未命中
+                showFloatingText("MISS", eChar, '#ccc');
+            }
+            updateHp();
+            
+            if (eHp <= 0) {
+                eChar.querySelector('.battle-avatar').innerText = '💥';
+                setTimeout(() => endGame('胜利！BOSS被击败了！'), 500);
+                return;
+            }
+
+            // BOSS 反击延迟
+            setTimeout(() => {
+                eChar.style.transform = 'translateX(-50px)';
+                setTimeout(() => eChar.style.transform = 'translateX(0)', 200);
+                
+                // BOSS 也有概率攻击失误
+                setTimeout(() => {
+                    pHp -= 15;
+                    showFloatingText("-15", pChar, '#ff4757');
+                    shakeElement(document.getElementById('stage-inner')); // 屏幕震动
+                    updateHp();
+                    
+                    if (pHp <= 0) {
+                        endGame('战斗失败...');
+                        return;
+                    }
+                    document.getElementById('atk-btn').disabled = false;
+                }, 300);
+            }, 1000);
+        });
+    };
+}
+
+// 4. 匹配引擎 - 3D翻转版
+function initMatch(body) {
+    // 使用稍微大一点的词库以增加趣味性
+    const items = [
+        {t:'Apple', m:'苹果'}, {t:'Run', m:'跑'}, 
+        {t:'Cat', m:'猫'}, {t:'Sun', m:'太阳'}, 
+        {t:'Red', m:'红色'}, {t:'Book', m:'书'}
+    ];
+    // 扁平化并打乱
+    let deck = [];
+    items.forEach(item => {
+        deck.push({id: item.t, text: item.t, type: 'en', pairId: item.t});
+        deck.push({id: item.t, text: item.m, type: 'cn', pairId: item.t});
+    });
+    deck.sort(() => Math.random() - 0.5);
+    
+    body.innerHTML = `
+        <div class="info-text">翻开卡片，寻找单词与释义的配对。</div>
+        <div class="match-grid" id="match-grid"></div>
+    `;
+    
+    const grid = document.getElementById('match-grid');
+    let firstCard = null;
+    let lock = false;
+    
+    deck.forEach((item, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'match-card-wrapper';
+        wrapper.dataset.index = index;
+        wrapper.dataset.pairId = item.pairId;
+        
+        wrapper.innerHTML = `
+            <div class="match-card-face match-card-front">?</div>
+            <div class="match-card-face match-card-back">${item.text}</div>
+        `;
+        
+        wrapper.onclick = () => {
+            if (lock || wrapper.classList.contains('flipped')) return;
+            
+            wrapper.classList.add('flipped');
+            
+            if (!firstCard) {
+                firstCard = wrapper;
+            } else {
+                lock = true;
+                if (firstCard.dataset.pairId === wrapper.dataset.pairId) {
+                    // 配对成功
+                    setTimeout(() => {
+                        firstCard.style.opacity = '0';
+                        wrapper.style.opacity = '0';
+                        firstCard.style.pointerEvents = 'none';
+                        wrapper.style.pointerEvents = 'none';
+                        firstCard = null;
+                        lock = false;
+                        // 检查胜利
+                        if (document.querySelectorAll('.match-card-wrapper:not([style*="opacity: 0"])').length === 0) {
+                            endGame('全部匹配成功！');
+                        }
+                    }, 800);
+                } else {
+                    // 配对失败，翻回去
+                    setTimeout(() => {
+                        firstCard.classList.remove('flipped');
+                        wrapper.classList.remove('flipped');
+                        firstCard = null;
+                        lock = false;
+                    }, 1000);
+                }
+            }
+        };
+        grid.appendChild(wrapper);
+    });
+}
+
+// 5. 射击引擎 - 动态浮空版
+function initShoot(body) {
+    body.innerHTML = `
+        <div class="info-text">点击漂浮的目标进行答题射击！</div>
+        <div class="shoot-area" id="shoot-area">
+            <div class="crosshair"></div>
+        </div>
+        <div class="hud" id="hud">命中: <span id="hits">0</span></div>
+    `;
+    
+    const area = document.getElementById('shoot-area');
+    const hitsSpan = document.getElementById('hits');
+    let hits = 0;
+    let gameTime = 0;
+    
+    // 鼠标跟随准星
+    area.addEventListener('mousemove', (e) => {
+        const rect = area.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const crosshair = area.querySelector('.crosshair');
+        crosshair.style.left = x + 'px';
+        crosshair.style.top = y + 'px';
+    });
+    
+    function spawnTarget() {
+        if (!gameState.active) return;
+        
+        const target = document.createElement('div');
+        target.className = 'shoot-target';
+        target.innerText = ['🎈','🪐','🛸','🎯'][Math.floor(Math.random()*4)];
+        
+        // 随机位置
+        const x = Math.random() * (area.offsetWidth - 60);
+        const y = Math.random() * (area.offsetHeight - 60);
+        target.style.left = x + 'px';
+        target.style.top = y + 'px';
+        
+        // 点击事件
+        target.onmousedown = (e) => {
+            e.stopPropagation();
+            target.remove();
+            showQuiz((correct) => {
+                if (correct) {
+                    hits++;
+                    hitsSpan.innerText = hits;
+                    // 特效：在该位置生成爆炸文字
+                    const rect = area.getBoundingClientRect();
+                    const floatTxt = document.createElement('div');
+                    floatTxt.innerText = "HIT!";
+                    floatTxt.style.position = 'absolute';
+                    floatTxt.style.left = x + 'px';
+                    floatTxt.style.top = y + 'px';
+                    floatTxt.style.color = '#fff';
+                    floatTxt.style.fontWeight = 'bold';
+                    floatTxt.style.animation = 'floatUp 0.5s forwards';
+                    area.appendChild(floatTxt);
+                    setTimeout(() => floatTxt.remove(), 500);
+                }
+            });
+        };
+        
+        area.appendChild(target);
+        
+        // 自动消失
+        setTimeout(() => {
+            if(target.parentNode) {
+                target.style.transform = 'scale(0)';
+                setTimeout(() => target.remove(), 200);
+            }
+        }, 2000 + Math.random() * 1000);
+    }
+    
+    // 游戏循环生成
+    const loopId = setInterval(() => {
+        if(!gameState.active) { clearInterval(loopId); return; }
+        if (Math.random() > 0.6) spawnTarget();
+    }, 800);
+    gameLoops.push(loopId);
+}
+
+// 6. 排序/拼图引擎 - 交互增强版
+function initSort(body) {
+    const words = ["PLANET", "GALAXY", "ROCKET"];
+    const target = words[Math.floor(Math.random()*words.length)];
+    const chars = target.split('');
+    
+    body.innerHTML = `
+        <div class="info-text">点击方块交换位置，拼出右侧单词。</div>
+        <h3 style="font-size:24px; color:var(--primary); letter-spacing:2px; background:white; padding:5px 15px; border-radius:8px; margin-bottom:20px;">${target}</h3>
+        <div class="sort-container" id="sort-container"></div>
+        <button class="general-btn" id="check-btn">✨ 验证拼写</button>
+    `;
+    
+    const container = document.getElementById('sort-container');
+    let currentOrder = [...chars];
+    
+    function render() {
+        container.innerHTML = '';
+        currentOrder.forEach((c, i) => {
+            const div = document.createElement('div');
+            div.className = 'sort-item';
+            div.innerText = c;
+            div.onclick = () => swapOrSelect(i, div);
+            container.appendChild(div);
+        });
+    }
+    
+    let selectedIndex = null;
+    
+    function swapOrSelect(idx, el) {
+        if (selectedIndex === null) {
+            selectedIndex = idx;
+            el.classList.add('active');
+        } else if (selectedIndex === idx) {
+            selectedIndex = null;
+            el.classList.remove('active');
+        } else {
+            // 交换
+            const temp = currentOrder[selectedIndex];
+            currentOrder[selectedIndex] = currentOrder[idx];
+            currentOrder[idx] = temp;
+            selectedIndex = null;
+            render();
+        }
+    }
+    
+    render();
+    
+    document.getElementById('check-btn').onclick = () => {
+        if (currentOrder.join('') === target) {
+            showQuiz((correct) => {
+                if (correct) endGame('完美通关！');
+                else endGame('拼写正确，但知识点巩固失败！');
+            });
+        } else {
+            shakeElement(container);
+            showFloatingText("顺序错误", container);
+        }
+    };
+}
+
+// 7. 模拟/进度条引擎
+function initSim(body) {
+    body.innerHTML = `
+        <div class="sim-container">
+            <div class="info-text">连续答对题目以提升工程进度！</div>
+            <div class="hud" id="hud">进度: <span id="sim-score">0</span>%</div>
+            <div class="sim-track">
+                <div class="sim-progress" id="progress"></div>
+            </div>
+            <button class="general-btn" id="action-btn">🔨 建设进度</button>
+        </div>
+    `;
+    
+    const btn = document.getElementById('action-btn');
+    const bar = document.getElementById('progress');
+    const scoreSpan = document.getElementById('sim-score');
+    
+    btn.onclick = () => {
+        btn.disabled = true;
+        showQuiz((correct) => {
+            if (correct) {
+                gameState.progress += 20;
+                showFloatingText("+20%", document.querySelector('.sim-track'), "#2ecc71");
+            } else {
+                gameState.progress = Math.max(0, gameState.progress - 10);
+                showFloatingText("-10%", document.querySelector('.sim-track'), "#ff4757");
+            }
+            
+            gameState.progress = Math.min(100, gameState.progress);
+            bar.style.width = gameState.progress + '%';
+            scoreSpan.innerText = gameState.progress;
+            
+            if (gameState.progress >= 100) {
+                endGame('建设竣工！');
+            } else {
+                btn.disabled = false;
+            }
+        });
+    };
+}
+
+// 8. 纯答题引擎
+function initPureQuiz(body) {
+    body.innerHTML = `
+        <div class="info-text">${currentGame.desc}</div>
+        <div style="font-size:60px; margin:20px;">🧠</div>
+        <div class="hud" id="hud">得分: <span id="pq-score">0</span></div>
+        <button class="general-btn" id="pq-start" style="width:200px; margin-top:20px;">开始挑战</button>
+    `;
+    
+    document.getElementById('pq-start').onclick = function() {
+        this.style.display = 'none';
+        triggerPq();
+    };
+    
+    function triggerPq() {
+        if (!gameState.active) return;
+        if (gameState.score >= 50) {
+            endGame('挑战完成！');
+            return;
+        }
+        showQuiz((correct) => {
+            if (correct) {
+                gameState.score += 10;
+                document.getElementById('pq-score').innerText = gameState.score;
+                // 简单的视觉反馈
+                const brain = document.querySelector('.info-text').nextElementSibling;
+                brain.style.transform = 'scale(1.2)';
+                setTimeout(() => brain.style.transform = 'scale(1)', 200);
+            }
+            triggerPq();
+        });
+    }
+}
+
+// 通用结束处理
+function endGame(msg) {
+    gameState.active = false;
+    const body = document.getElementById('stage-body');
+    // 保留原有内容但遮罩一层
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:100; animation:popIn 0.3s;';
+    overlay.innerHTML = `
+        <div style="font-size:50px; margin-bottom:20px;">🏆</div>
+        <h2 style="margin-bottom:30px; font-size:24px; color:var(--text-main);">${msg}</h2>
+        <button class="general-btn" onclick="startGame(${currentGame.id})">再玩一次</button>
+        <button class="general-btn" onclick="closeGame()" style="background:transparent; color:var(--text-sub); box-shadow:none; margin-top:10px;">返回列表</button>
+    `;
+    body.appendChild(overlay);
+}
+
+// 启动渲染
+renderList();
+</script>
+</body>
+</html>

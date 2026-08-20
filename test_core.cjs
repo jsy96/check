@@ -1,10 +1,10 @@
 'use strict';
-/* 自测：从 whiskbroom_check.html 抽出 <script id="core"> 真实代码，
-   验证推导链闭环、互检触发、漏扫约束触发。运行：node test_core.cjs */
+/* 自测：从 index.html 抽出 <script id="core"> 真实代码，
+   验证推导链闭环、互检触发、漏扫约束触发、TXT 参数文件往返。运行：node test_core.cjs */
 const fs = require('fs');
 const path = require('path');
 
-const html = fs.readFileSync(path.join(__dirname, 'whiskbroom_check.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 const m = html.match(/<script id="core">([\s\S]*?)<\/script>/);
 if (!m) { console.error('FAIL: 未找到 core script 块'); process.exit(1); }
 const corePath = path.join(__dirname, '_core_tmp.cjs');
@@ -95,6 +95,34 @@ console.log('Case F：帧间步进超过瞬时覆盖 → 帧间漏扫报警');
   const hit = con.find(c=>c.name.includes('帧间不漏扫') && c.status==='bad');
   console.log('    ' + (hit ? hit.detail : '（未触发）'));
   assert(!!hit, '帧间漏扫约束触发为 bad');
+}
+
+console.log('Case G：参数 TXT 序列化 → 解析 往返一致');
+{
+  const ins = {R:6371e3, mu:3.986004418e14, H:500e3, f:1, F_frame:100, omega_m:omegaM, N_f:600,
+               t_fly:6.4, N_det:10240, p_along:10e-6, M_det:1024, p_cross:10e-6};
+  const units = {R:0, mu:0, H:0, f:1, F_frame:0, omega_m:0, N_f:0, t_fly:0,
+                 N_det:0, p_along:4, M_det:0, p_cross:4}; // 保存时所选显示单位索引
+  const text = core.paramsToText(ins, units, 'start', 0.01);
+  const r = core.parseParamText(text);
+  assert(r.warnings.length === 0, '整文件解析无警告');
+  assert(r.mode === 'start' && Math.abs(r.tol - 0.01) < 1e-15, 'mode / tolerance 往返一致');
+  const keys = Object.keys(ins);
+  let ok = keys.filter(k => r.inputs[k] != null && relErr(r.inputs[k], ins[k]) < 1e-10);
+  assert(ok.length === keys.length, keys.length + ' 个参数 SI 值往返一致（' + ok.length + '）');
+
+  const r2 = core.parseParamText(
+    'H = 500 km\r\nTheta = 6 ° # 行内注释\nmode = center\nv_sat = 7616.9 km/s\nfoo = 1');
+  assert(r2.inputs.H === 500e3 && r2.units.H === 0, '"H = 500 km"（CRLF 行）正确换算');
+  assert(Math.abs(r2.inputs.Theta - 6*D2R) < 1e-12, '"Theta = 6 °" + 行内注释正确解析');
+  assert(r2.mode === 'center' && Math.abs(r2.inputs.v_sat - 7616.9e3) < 1e-6, '手写 mode / 速度行生效');
+  assert(r2.warnings.some(w => w.includes('foo')), '未知参数产生警告');
+
+  const r3 = core.parseParamText('H = 500'); // 不带单位 = SI 基本单位
+  assert(r3.inputs.H === 500 && r3.units.H === 1, '无单位视为 SI 基本单位 m（单位索引切到 m）');
+
+  const r4 = core.parseParamText(String.fromCharCode(0xFEFF) + 'H = 500 km'); // 带 UTF-8 BOM 的文件
+  assert(r4.inputs.H === 500e3 && r4.warnings.length === 0, '带 BOM 文件头正确剥离');
 }
 
 fs.unlinkSync(corePath);
