@@ -6,52 +6,114 @@
 <title>爱玩的老人 · 个人主页</title>
 <style>
 :root{
-  --bg:#f4f6f9;--card:#ffffff;--ink:#1f2a36;--mut:#68788a;--line:#dde4ec;
-  --ok:#167a48;--okbg:#e8f6ee;--okln:#bfe6cf;
-  --bad:#b3261e;--badbg:#fdeceb;--badln:#f3c1bd;
-  --info:#7a5d00;--infobg:#fff8e1;--infoln:#ead9a0;
-  --acc:#2059a8;
+  --bg:#f4f6fb;--card:#ffffff;--ink:#1b2536;--mut:#68758c;--line:#e3e8f2;
+  --acc:#4f6ef7;--acc2:#9a6bf2;--acc-dk:#3a53c9;
+  --grad:linear-gradient(135deg,#4f6ef7,#9a6bf2);
+  --sh:0 1px 2px rgba(27,37,54,.04),0 10px 28px rgba(27,37,54,.07);
+  --sh-hi:0 6px 14px rgba(27,37,54,.07),0 22px 48px rgba(79,110,247,.16);
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font:14px/1.65 "Segoe UI",system-ui,"Microsoft YaHei",sans-serif}
-header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 20px;
-  display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
-header h1{font-size:16px;margin:0;font-weight:600}
-.ver{color:var(--mut);font-size:12px}
+  font:14px/1.65 "Segoe UI",system-ui,"Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased}
+::selection{background:#dde5ff}
+
+/* ---------- 背景极光 ---------- */
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.bg i{position:absolute;border-radius:50%;filter:blur(90px)}
+.bg .b1{width:560px;height:560px;left:-160px;top:-180px;background:#c9d8ff;opacity:.55;animation:drift 22s ease-in-out infinite}
+.bg .b2{width:480px;height:480px;right:-140px;top:-120px;background:#e7dbff;opacity:.55;animation:drift 26s ease-in-out -8s infinite reverse}
+.bg .b3{width:560px;height:560px;right:-120px;bottom:-240px;background:#c9f1ff;opacity:.45;animation:drift 24s ease-in-out -4s infinite}
+.bg .b4{width:420px;height:420px;left:-120px;bottom:-160px;background:#ffe1ea;opacity:.4;animation:drift 28s ease-in-out -12s infinite reverse}
+.bg::after{content:"";position:absolute;inset:0;
+  background-image:radial-gradient(circle,rgba(27,37,54,.045) 1px,transparent 1px);
+  background-size:24px 24px}
+@keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(36px,-24px)}}
+
+/* ---------- 吸顶栏 ---------- */
+header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.72);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(227,232,242,.85);padding:11px 22px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.2px}
+.ver{font-size:12px;color:var(--acc-dk);background:#e9effe;border:1px solid #d7e2fc;
+  border-radius:999px;padding:1px 10px}
 .hint{margin-left:auto;color:var(--mut);font-size:12px}
-main{max-width:1080px;margin:0 auto;padding:24px 16px}
-.hero{display:flex;align-items:center;gap:18px;margin:0 0 26px;flex-wrap:wrap}
-.hero .face{width:64px;height:64px;border-radius:50%;background:var(--card);
-  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
-  font-size:34px;flex:none;box-shadow:0 2px 8px rgba(31,42,54,.08)}
-.hero h2{font-size:24px;margin:0 0 2px}
-.hero p{margin:0;color:var(--mut);font-size:13px}
-.sec{margin:0 0 10px;font-size:15px;font-weight:600}
-.sec .n{color:var(--mut);font-weight:400;font-size:12.5px;margin-left:6px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:26px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;
-  padding:18px 20px;display:flex;flex-direction:column;gap:8px;
-  transition:border-color .15s, box-shadow .15s}
-.card:hover{border-color:var(--acc);box-shadow:0 2px 10px rgba(32,89,168,.12)}
-.card h2{margin:0;font-size:15.5px}
-.card .tag{color:var(--mut);font-size:12px}
-.card ul{margin:4px 0 8px;padding-left:20px;color:var(--mut);font-size:12.5px;line-height:1.7}
-.card ul li::marker{color:var(--acc)}
-.card .file{font:12px Consolas,monospace;color:var(--mut);background:#eef2f7;
-  border-radius:4px;padding:1px 6px;width:fit-content}
-.card .go{margin-top:auto;align-self:flex-start;text-decoration:none;font-size:13px;
-  border:1px solid var(--acc);color:#fff;background:var(--acc);border-radius:6px;
-  padding:5px 16px}
-.card .go:hover{background:#174a8e}
-footer{max-width:1080px;margin:0 auto;padding:0 16px 28px;color:var(--mut);font-size:12px;
-  text-align:center}
-footer code{background:#eef2f7;border-radius:4px;padding:1px 6px;font-size:11.5px}
+
+/* ---------- 主体 ---------- */
+main{max-width:1080px;margin:0 auto;padding:40px 18px 8px}
+.hero{display:flex;align-items:center;gap:22px;margin:0 0 36px;flex-wrap:wrap;
+  animation:rise .5s ease both}
+.face-wrap{padding:3px;border-radius:26px;background:var(--grad);flex:none;
+  box-shadow:0 14px 30px -10px rgba(79,110,247,.5)}
+.face{width:74px;height:74px;border-radius:23px;background:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:38px}
+.hero h2{font-size:27px;margin:0 0 6px;font-weight:800;letter-spacing:.3px;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin:0 0 12px;color:var(--mut);font-size:13.5px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-size:12px;color:#5a6b85;background:rgba(255,255,255,.85);border:1px solid var(--line);
+  border-radius:999px;padding:3px 12px;box-shadow:0 2px 6px rgba(27,37,54,.04)}
+
+.sec{display:flex;align-items:center;gap:10px;margin:0 0 14px;font-size:15.5px;font-weight:700}
+.sec::before{content:"";width:5px;height:17px;border-radius:3px;background:var(--grad);flex:none}
+.sec .n{color:var(--mut);font-weight:400;font-size:12.5px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-bottom:36px}
+
+/* ---------- 卡片 ---------- */
+a.card{text-decoration:none;color:inherit}
+.card{position:relative;overflow:hidden;background:var(--card);border:1px solid var(--line);
+  border-radius:18px;padding:20px 22px 22px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:var(--sh);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.card::after{content:"";position:absolute;top:-70%;right:-25%;width:65%;aspect-ratio:1;
+  border-radius:50%;background:radial-gradient(circle,rgba(var(--ts),.10),transparent 62%);
+  opacity:0;transition:opacity .25s}
+.card:hover{transform:translateY(-4px);box-shadow:var(--sh-hi);border-color:rgba(var(--ts),.35)}
+.card:hover::after{opacity:1}
+.card:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.head{display:flex;align-items:center;gap:13px}
+.ico{width:44px;height:44px;border-radius:13px;flex:none;display:flex;align-items:center;
+  justify-content:center;font-size:23px;color:#fff;
+  background:linear-gradient(135deg,var(--t1),var(--t2));
+  box-shadow:0 10px 18px -8px rgba(var(--ts),.65),inset 0 1px 0 rgba(255,255,255,.35)}
+.card h2{margin:0;font-size:15.5px;line-height:1.45;font-weight:700}
+.card .tag{color:var(--mut);font-size:12px;line-height:1.5}
+.card ul{list-style:none;margin:2px 0 10px;padding:0}
+.card li{position:relative;padding-left:19px;color:var(--mut);font-size:12.5px;line-height:1.75}
+.card li::before{content:"";position:absolute;left:1px;top:.62em;width:7px;height:7px;
+  border-radius:2.5px;background:linear-gradient(135deg,var(--t1),var(--t2));opacity:.9}
+.card .file{font:12px/1.7 Consolas,"Cascadia Mono",monospace;color:#7c89a0;background:#f2f5fb;
+  border:1px solid var(--line);border-radius:7px;padding:1px 9px;width:fit-content}
+.card .go{margin-top:auto;align-self:flex-start;display:inline-flex;align-items:center;gap:7px;
+  font-size:13px;font-weight:600;color:#fff;border-radius:999px;padding:7px 18px;
+  background:linear-gradient(135deg,var(--t1),var(--t2));
+  box-shadow:0 8px 16px -8px rgba(var(--ts),.7);transition:filter .2s,box-shadow .2s}
+.card:hover .go{filter:brightness(1.06);box-shadow:0 10px 20px -8px rgba(var(--ts),.85)}
+.card .go .arr{font-style:normal;transition:transform .2s}
+.card:hover .go .arr{transform:translateX(3px)}
+
+/* ---------- 页脚 ---------- */
+footer{max-width:1080px;margin:26px auto 0;padding:18px 16px 30px;color:var(--mut);
+  font-size:12px;text-align:center;border-top:1px solid var(--line)}
+footer code{background:#eef2f8;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:11.5px}
 footer .icp{display:block;margin-top:8px;color:var(--mut);text-decoration:none}
 footer .icp:hover{color:var(--acc)}
+
+/* ---------- 入场动画 ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+header{animation:rise .4s ease both}
+.d1{animation:rise .5s .08s ease both}
+.d2{animation:rise .5s .14s ease both}
+.d3{animation:rise .5s .2s ease both}
+.d4{animation:rise .5s .26s ease both}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
 </style>
 </head>
 <body>
+<div class="bg"><i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i></div>
 <header>
   <h1>👴 爱玩的老人 · 个人主页</h1>
   <span class="ver" id="ver"></span>
@@ -59,18 +121,23 @@ footer .icp:hover{color:var(--acc)}
 </header>
 <main>
   <div class="hero">
-    <div class="face">🎮</div>
+    <div class="face-wrap"><div class="face">🎮</div></div>
     <div>
       <h2>爱玩的老人</h2>
       <p>个人主页 —— 有趣的声音、工具与游戏，都收在这里。</p>
+      <div class="chips">
+        <span class="chip">🛰️ 相机参数工具 × 2</span>
+        <span class="chip">🎮 经典游戏 × 1</span>
+        <span class="chip">🎵 声音站点 × 2</span>
+      </div>
     </div>
   </div>
 
-  <p class="sec">本站工具与游戏<span class="n">部署在本服务器</span></p>
-  <div class="grid">
+  <p class="sec d1">本站工具与游戏<span class="n">部署在本服务器</span></p>
+  <div class="grid d2">
 
-    <a class="card" href="pushbroom.html" style="text-decoration:none;color:inherit">
-      <h2>🛰️ 线阵推扫相机参数计算</h2>
+    <a class="card" href="pushbroom.html" style="--t1:#4f6ef7;--t2:#22a7e0;--ts:79,110,247">
+      <span class="head"><span class="ico">🛰️</span><h2>线阵推扫相机参数计算</h2></span>
       <span class="tag">生成 taijing304_MSS.coef 格式安装系数文件 · 版本以页面内显示为准</span>
       <ul>
         <li>波段数 / CCD 片数 / 探元 / 焦距 / 轨道 / GSD（任留空自动推导）</li>
@@ -78,11 +145,11 @@ footer .icp:hover{color:var(--acc)}
         <li>实时 .coef 预览并保存到本地（CRLF、%.18e，与实例文件格式一致）</li>
       </ul>
       <span class="file">pushbroom.html</span>
-      <span class="go">打开 →</span>
+      <span class="go">打开 <i class="arr">→</i></span>
     </a>
 
-    <a class="card" href="wiskbroom.html" style="text-decoration:none;color:inherit">
-      <h2>🛰️ 面阵相机卫星摆扫 · 参数一致性校验</h2>
+    <a class="card" href="wiskbroom.html" style="--t1:#0ea5a5;--t2:#3ec3f5;--ts:14,165,165">
+      <span class="head"><span class="ico">🛰️</span><h2>面阵相机卫星摆扫 · 参数一致性校验</h2></span>
       <span class="tag">摆扫成像几何 / 时序计算 · 版本以页面内显示为准</span>
       <ul>
         <li>全局/轨道、沿迹、穿迹三组参数，留空自动推导</li>
@@ -90,36 +157,36 @@ footer .icp:hover{color:var(--acc)}
         <li>参数 TXT / JSON 存档导入导出</li>
       </ul>
       <span class="file">wiskbroom.html</span>
-      <span class="go">打开 →</span>
+      <span class="go">打开 <i class="arr">→</i></span>
     </a>
 
-    <a class="card" href="game.html" style="text-decoration:none;color:inherit">
-      <h2>🎮 一起小学：百款经典玩法溯源还原（Pro版）</h2>
+    <a class="card" href="game.html" style="--t1:#fb923c;--t2:#f43f5e;--ts:244,63,94">
+      <span class="head"><span class="ico">🎮</span><h2>一起小学：百款经典玩法溯源还原（Pro版）</h2></span>
       <span class="tag">经典小游戏合集 · 版本以页面内显示为准</span>
       <ul>
         <li>经典小游戏合集</li>
       </ul>
       <span class="file">game.html</span>
-      <span class="go">打开 →</span>
+      <span class="go">打开 <i class="arr">→</i></span>
     </a>
 
   </div>
 
-  <p class="sec">有趣的声音<span class="n">leige.site</span></p>
-  <div class="grid">
+  <p class="sec d3">有趣的声音<span class="n">leige.site</span></p>
+  <div class="grid d4">
 
-    <a class="card" href="https://bigdog.leige.site" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
-      <h2>🐕 bigdog.leige.site</h2>
+    <a class="card" href="https://bigdog.leige.site" target="_blank" rel="noopener" style="--t1:#f7b955;--t2:#f08c2e;--ts:240,140,46">
+      <span class="head"><span class="ico">🐕</span><h2>bigdog.leige.site</h2></span>
       <span class="tag">外部站点 · 新标签页打开</span>
       <span class="file">https://bigdog.leige.site</span>
-      <span class="go">前往 ↗</span>
+      <span class="go">前往 <i class="arr">↗</i></span>
     </a>
 
-    <a class="card" href="https://music.leige.site" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">
-      <h2>🎵 music.leige.site</h2>
+    <a class="card" href="https://music.leige.site" target="_blank" rel="noopener" style="--t1:#8b5cf6;--t2:#ec4899;--ts:139,92,246">
+      <span class="head"><span class="ico">🎵</span><h2>music.leige.site</h2></span>
       <span class="tag">外部站点 · 新标签页打开</span>
       <span class="file">https://music.leige.site</span>
-      <span class="go">前往 ↗</span>
+      <span class="go">前往 <i class="arr">↗</i></span>
     </a>
 
   </div>
@@ -130,7 +197,7 @@ footer .icp:hover{color:var(--acc)}
 </footer>
 <script>
 'use strict';
-const VERSION = 'v1.0.260820-5';
+const VERSION = 'v1.0.260820-6';
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').textContent = VERSION;
 </script>

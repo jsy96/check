@@ -4,7 +4,7 @@
 
 | 文件 | 说明 |
 |---|---|
-| `index.html` | 主页「爱玩的老人」（v1.0.260820-4）：上半部分「本站工具与游戏」依次链接 pushbroom.html / wiskbroom.html / game.html（一起小学在最右侧），下半部分「有趣的声音」链接 bigdog.leige.site / music.leige.site |
+| `index.html` | 主页「爱玩的老人」（v1.0.260820-6，视觉美化版：极光渐变背景、玻璃吸顶栏、渐变图标卡片与悬停/入场动效）：上半部分「本站工具与游戏」依次链接 pushbroom.html / wiskbroom.html / game.html（一起小学在最右侧），下半部分「有趣的声音」链接 bigdog.leige.site / music.leige.site |
 | `wiskbroom.html` | 面阵相机卫星摆扫 · 参数一致性校验（v1.0.260820-5） |
 | `pushbroom.html` | 线阵推扫相机参数计算（v1.0.260820-5） |
 | `test_core.cjs` | wiskbroom.html 核心计算自测 |
