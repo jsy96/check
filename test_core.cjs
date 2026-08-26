@@ -67,6 +67,7 @@ console.log('Case C：只给骨干参数 → 推导链补全');
   assert(val.D_cross && relErr(val.D_cross.value, 5120) < 1e-9, 'D⊥ = H·W/f = 5120 m');
   assert(val.Theta && relErr(val.Theta.value, thetaTot) < 1e-9, 'Θ = N_f·Δθ = 4.8e-3 rad（0.275°）');
   assert(val.t_fly && relErr(val.t_fly.value, 6) < 1e-9, 'T = N_f·t_f（连续摆扫）= 6 s');
+  assert(val.t_img && relErr(val.t_img.value, 6) < 1e-9, 'T成像 = N_f·t_f = 6 s');
   assert(val.t_retrace && Math.abs(val.t_retrace.value) < 1e-12, 'T往返 = T − N_f·t_f = 0（连续摆扫）');
   assert(val.SW && relErr(val.SW.value, 2400) < 0.01, 'SW ≈ 2.400 km（球面换算，1% 内）');
   assert(val.fov_along && relErr(val.fov_along.value, 0.1024) < 1e-9, 'Ω∥ = L/f 推导');
@@ -141,6 +142,7 @@ console.log('Case I：只输入往返时间 1s（T 留空）→ T = 成像时长
 {
   const val = core.solve({N_f:600, F_frame:100, t_retrace:1}, 'start');
   assert(val.t_fly && relErr(val.t_fly.value, 7) < 1e-9, 'T = N_f·t_f + T往返 = 7 s');
+  assert(val.t_img && relErr(val.t_img.value, 6) < 1e-9, 'T成像 = N_f·t_f = 6 s 同步推导');
   assert(val.t_retrace && val.t_retrace.source === '输入', 'T往返 保持输入值不被覆盖');
   const chk = core.buildChecks(val, 0.02);
   const hit = chk.find(c=>c.status==='bad' && c.pid==='t_fly');
