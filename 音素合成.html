@@ -1,0 +1,2258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPA音素声学合成器 · Articulatory Synthesis</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #0f1424;
+    --panel: #141a2e;
+    --panel-2: #1a2140;
+    --border: #2a3358;
+    --fg: #e8ecf5;
+    --muted: #8892b0;
+    --accent: #64ffda;
+    --accent-2: #7c4dff;
+    --warm: #ffb74d;
+    --hot: #ff6b9d;
+    --vowel: #64ffda;
+    --stop: #ff6b9d;
+    --fric: #ffb74d;
+    --nasal: #7c4dff;
+    --liq: #4fc3f7;
+    --glide: #81c784;
+  }
+  
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    background: var(--bg);
+    background-image: 
+      radial-gradient(ellipse 80% 50% at 20% 0%, rgba(124, 77, 255, 0.15), transparent),
+      radial-gradient(ellipse 60% 50% at 80% 100%, rgba(100, 255, 218, 0.08), transparent);
+    color: var(--fg);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  
+  .container { max-width: 1480px; margin: 0 auto; }
+  
+  header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  header h1 {
+    font-size: 32px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+  }
+  
+  header .subtitle {
+    color: var(--muted);
+    color: var(--muted);
+    font-size: 14px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  
+  header .principle {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.6;
+  }
+  
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 20px;
+  }
+  
+  @media (max-width: 1100px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+  
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+  }
+  
+  .panel-title {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .panel-title::before {
+    content: '';
+    width: 4px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  
+  /* IPA键盘 */
+  .ipa-section {
+    margin-bottom: 22px;
+  }
+  
+  .section-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .section-label .hint {
+    color: var(--muted);
+    font-size: 10px;
+    opacity: 0.7;
+  }
+  
+  .ipa-grid {
+    display: grid;
+    gap: 6px;
+  }
+  
+  .ipa-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    padding: 10px 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    position: relative;
+    overflow: hidden;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .ipa-btn .example {
+    font-size: 9px;
+    color: var(--muted);
+    font-weight: 400;
+    margin-top: 2px;
+    font-family: 'Noto Sans SC', sans-serif;
+  }
+  
+  .ipa-btn:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(100, 255, 218, 0.15);
+  }
+  
+  .ipa-btn:active {
+    transform: translateY(0);
+  }
+  
+  .ipa-btn.vowel { border-left: 3px solid var(--vowel); }
+  .ipa-btn.stop { border-left: 3px solid var(--stop); }
+  .ipa-btn.fric { border-left: 3px solid var(--fric); }
+  .ipa-btn.nasal { border-left: 3px solid var(--nasal); }
+  .ipa-btn.liq { border-left: 3px solid var(--liq); }
+  .ipa-btn.glide { border-left: 3px solid var(--glide); }
+  
+  .ipa-btn.playing {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent);
+  }
+  
+  /* 元音四边形 */
+  .vowel-chart {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .vowel-quadrilateral {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    background: 
+      linear-gradient(135deg, rgba(100, 255, 218, 0.03), rgba(124, 77, 255, 0.03));
+    border-radius: 8px;
+  }
+  
+  .vowel-quadrilateral svg {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  
+  .vowel-point {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: pointer;
+    z-index: 2;
+  }
+  
+  .vowel-point .dot {
+    width: 28px;
+    height: 28px;
+    background: var(--panel-2);
+    border: 2px solid var(--vowel);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--vowel);
+    transition: all 0.2s;
+  }
+  
+  .vowel-point:hover .dot {
+    background: var(--vowel);
+    color: var(--bg);
+    transform: scale(1.15);
+    box-shadow: 0 0 16px var(--vowel);
+  }
+  
+  .vowel-point.rounded .dot {
+    border-style: dashed;
+  }
+  
+  .axis-label {
+    position: absolute;
+    color: var(--muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  
+  /* 辅音表格 */
+  .consonant-table {
+    display: grid;
+    grid-template-columns: 80px repeat(9, 1fr);
+    gap: 4px;
+    font-size: 11px;
+  }
+  
+  .consonant-table .col-header {
+    text-align: center;
+    color: var(--muted);
+    padding: 6px 2px;
+    font-size: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .consonant-table .row-header {
+    color: var(--muted);
+    padding: 6px 8px;
+    text-align: right;
+    font-size: 10px;
+    border-right: 1px solid var(--border);
+  }
+  
+  .consonant-cell {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* 序列编辑器 */
+  .sequence-editor textarea {
+    width: 100%;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--fg);
+    padding: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+    letter-spacing: 0.05em;
+  }
+  
+  .sequence-editor textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.1);
+  }
+  
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  
+  .btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: var(--bg);
+    border: none;
+    font-weight: 700;
+  }
+  
+  .btn.primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(100, 255, 218, 0.3);
+  }
+  
+  .slider-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  
+  .slider-group input[type="range"] {
+    width: 100px;
+    accent-color: var(--accent);
+  }
+  
+  /* 可视化 */
+  .visualizer {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    height: 180px;
+    position: relative;
+  }
+  
+  .visualizer canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  
+  .viz-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  
+  .viz-tab {
+    padding: 6px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .viz-tab.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  
+  /* 信息面板 */
+  .info-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .current-phoneme {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+  }
+  
+  .current-symbol {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 72px;
+    font-weight: 600;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 8px 0;
+  }
+  
+  .current-name {
+    color: var(--fg);
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  
+  .current-desc {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  
+  .acoustic-params {
+    background: var(--bg-2);
+    border-radius: 10px;
+    padding: 12px;
+    margin-top: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-align: left;
+  }
+  
+  .param-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    color: var(--muted);
+  }
+  
+  .param-row .val {
+    color: var(--accent);
+  }
+  
+  /* 发声过程说明 */
+  .process-list {
+    list-style: none;
+    text-align: left;
+  }
+  
+  .process-list li {
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .process-list li:last-child { border-bottom: none; }
+  
+  .process-list .step {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  
+  /* 预设示例 */
+  .presets {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+  
+  .preset-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  
+  .preset-btn:hover {
+    border-color: var(--accent-2);
+    color: var(--accent-2);
+  }
+  
+  .preset-btn .ipa {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent);
+    display: block;
+  }
+  
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+  }
+  
+  .status-bar {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: var(--bg-2);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .status-bar .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>IPA 音素声学合成器</h1>
+    <div class="subtitle">ARTICULATORY · ACOUSTIC · SYNTHESIS · ENGINE</div>
+    <div class="principle">
+      基于发声原理逐音素建模：声门脉冲激励 → 声道共振峰滤波 → 鼻腔耦合零点 → 爆破释放 → 摩擦噪声着色。每个音素根据其发音部位、发音方式、声带振动状态独立构建合成管线，不依赖任何打包TTS。
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- 左侧：键盘和编辑 -->
+    <div>
+      <!-- 元音区 -->
+      <div class="panel" style="margin-bottom: 20px;">
+        <div class="panel-title">元音 · VOWELS</div>
+        <div class="vowel-chart">
+          <div class="vowel-quadrilateral" id="vowelChart">
+            <svg viewBox="0 0 400 200" preserveAspectRatio="none">
+              <!-- 元音四边形框架 -->
+              <polygon points="40,20 360,20 320,180 80,180" 
+                       fill="rgba(100, 255, 218, 0.04)" 
+                       stroke="rgba(100, 255, 218, 0.3)" 
+                       stroke-width="1" stroke-dasharray="3,3"/>
+              <!-- 中线 -->
+              <line x1="200" y1="20" x2="200" y2="180" stroke="rgba(136, 146, 176, 0.2)" stroke-dasharray="2,2"/>
+              <line x1="40" y1="100" x2="360" y2="100" stroke="rgba(136, 146, 176, 0.2)" stroke-dasharray="2,2"/>
+            </svg>
+            <div class="axis-label" style="top: 4px; left: 50%; transform: translateX(-50%);">前 ← 舌位 → 后</div>
+            <div class="axis-label" style="left: 8px; top: 50%; transform: rotate(-90deg) translateY(-50%); transform-origin: left top;">高 ← 舌位 → 低</div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background: var(--vowel)"></div>不圆唇</div>
+          <div class="legend-item"><div class="legend-dot" style="background: var(--vowel); opacity: 0.5; border: 1px dashed var(--vowel)"></div>圆唇</div>
+        </div>
+      </div>
+
+      <!-- 辅音区 -->
+      <div class="panel" style="margin-bottom: 20px;">
+        <div class="panel-title">辅音 · CONSONANTS</div>
+        <div id="consonantArea"></div>
+        <div class="legend" style="margin-top: 14px;">
+          <div class="legend-item"><div class="legend-dot" style="background: var(--stop)"></div>塞音</div>
+          <div class="legend-item"><div class="legend-dot" style="background: var(--fric)"></div>擦音</div>
+          <div class="legend-item"><div class="legend-dot" style="background: var(--nasal)"></div>鼻音</div>
+          <div class="legend-item"><div class="legend-dot" style="background: var(--liq)"></div>流音</div>
+          <div class="legend-item"><div class="legend-dot" style="background: var(--glide)"></div>滑音</div>
+        </div>
+      </div>
+
+      <!-- 序列编辑器 -->
+      <div class="panel">
+        <div class="panel-title">音素序列 · SEQUENCE EDITOR</div>
+        <div class="sequence-editor">
+          <textarea id="sequenceInput" spellcheck="false">hɛloʊ</textarea>
+          <div class="controls">
+            <button class="btn primary" id="playBtn">▶ 合成播放</button>
+            <button class="btn" id="stopBtn">■ 停止</button>
+            <button class="btn" id="clearBtn">清空</button>
+            <div class="slider-group">
+              <span>语速</span>
+              <input type="range" id="rateSlider" min="0.5" max="1.8" step="0.05" value="1">
+              <span id="rateVal">1.0×</span>
+            </div>
+            <div class="slider-group">
+              <span>基频</span>
+              <input type="range" id="f0Slider" min="80" max="220" step="5" value="120">
+              <span id="f0Val">120Hz</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <div class="section-label">
+            <span>预设示例</span>
+          </div>
+          <div class="presets">
+            <button class="preset-btn" data-seq="hɛloʊ"><span class="ipa">hɛloʊ</span>Hello</button>
+            <button class="preset-btn" data-seq="ʃi"><span class="ipa">ʃi</span>She</button>
+            <button class="preset-btn" data-seq="θæŋks"><span class="ipa">θæŋks</span>Thanks</button>
+            <button class="preset-btn" data-seq="bjuɾɪfəl"><span class="ipa">bjuɾɪfəl</span>Beautiful</button>
+            <button class="preset-btn" data-seq="stɹaɪk"><span class="ipa">stɹaɪk</span>Strike</button>
+            <button class="preset-btn" data-seq="nais̥təmiːtjuː"><span class="ipa">naɪs tə miːt juː</span>Nice to meet you</button>
+          </div>
+        </div>
+
+        <!-- 可视化 -->
+        <div style="margin-top: 16px;">
+          <div class="viz-tabs">
+            <div class="viz-tab active" data-viz="spectrum">频谱</div>
+            <div class="viz-tab" data-viz="waveform">波形</div>
+            <div class="viz-tab" data-viz="spectrogram">语谱图</div>
+          </div>
+          <div class="visualizer">
+            <canvas id="vizCanvas"></canvas>
+          </div>
+        </div>
+
+        <div class="status-bar">
+          <span><span class="status-dot"></span><span id="statusText">就绪</span></span>
+          <span id="phonemeCount">0 个音素</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧：信息面板 -->
+    <div class="info-panel">
+      <div class="current-phoneme">
+        <div class="section-label" style="justify-content: center;">当前音素</div>
+        <div class="current-symbol" id="curSymbol">—</div>
+        <div class="current-name" id="curName">点击键盘上的音素</div>
+        <div class="current-desc" id="curDesc">每个音素都有独立的声学产生逻辑</div>
+        <div class="acoustic-params" id="acousticParams">
+          <div class="param-row"><span>类型</span><span class="val">—</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">发声过程</div>
+        <ul class="process-list" id="processList">
+          <li><span class="step">01</span><span>选择音素后，此处显示该音素从肺部气流到声波输出的完整物理过程</span></li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">合成原理</div>
+        <div style="font-size: 12px; color: var(--muted); line-height: 1.7;">
+          <p style="margin-bottom: 10px;">
+            <strong style="color: var(--accent);">声源-滤波模型</strong>：语音 = 激励源 × 声道传递函数
+          </p>
+          <p style="margin-bottom: 10px;">
+            <strong style="color: var(--accent);">浊音源</strong>：声带周期性开合产生准周期脉冲，基频F0决定音高
+          </p>
+          <p style="margin-bottom: 10px;">
+            <strong style="color: var(--accent);">清音源</strong>：声道某处湍流产生宽带噪声
+          </p>
+          <p style="margin-bottom: 10px;">
+            <strong style="color: var(--accent);">共振峰</strong>：声道形状决定的共振频率，元音的F1~F3区分音色
+          </p>
+          <p style="margin-bottom: 10px;">
+            <strong style="color: var(--accent);">鼻音零点</strong>：鼻腔耦合引入反共振，造成谱凹陷
+          </p>
+          <p>
+            <strong style="color: var(--accent);">爆破</strong>：闭塞积累气压后瞬间释放，产生短脉冲
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// IPA 音素声学参数库
+// 每个音素的参数反映其发音部位和方式产生的声学特征
+// 数据基于 Fant (1960), Stevens (1998), Johnson (2012) 等声学语音学经典研究
+// ════════════════════════════════════════════════════════════════
+
+const IPA = {
+  // ─── 元音 ───
+  // 共振峰频率基于声道形状：舌位高低决定F1，舌位前后决定F2，圆唇降低F2/F3
+  'i': { type:'vowel', name:'闭前不圆唇元音', desc:'舌位最高最前，声道最窄最长',
+    f1:290, f2:2200, f3:2900, bw1:50, bw2:110, bw3:120 },
+  'y': { type:'vowel', name:'闭前圆唇元音', desc:'舌位如i，唇前突圆，F2/F3降低',
+    f1:280, f2:1850, f3:2300, bw1:50, bw2:120, bw3:150 },
+  'ɪ': { type:'vowel', name:'次闭次前元音', desc:'比i略低略后',
+    f1:350, f2:1900, f3:2550, bw1:60, bw2:120, bw3:150 },
+  'ɯ': { type:'vowel', name:'闭后不圆唇元音', desc:'舌位如u但不圆唇',
+    f1:310, f2:770, f3:2400, bw1:60, bw2:110, bw3:150 },
+  'u': { type:'vowel', name:'闭后圆唇元音', desc:'舌位最后最高，唇圆，F2极低',
+    f1:300, f2:870, f3:2240, bw1:60, bw2:120, bw3:150 },
+  'ʊ': { type:'vowel', name:'次闭次后元音', desc:'比u略低略前',
+    f1:370, f2:950, f3:2300, bw1:70, bw2:120, bw3:150 },
+  'e': { type:'vowel', name:'半闭前不圆唇元音', desc:'舌位半高前',
+    f1:400, f2:2000, f3:2550, bw1:70, bw2:120, bw3:150 },
+  'ø': { type:'vowel', name:'半闭前圆唇元音', desc:'舌位如e，唇圆',
+    f1:390, f2:1700, f3:2350, bw1:70, bw2:130, bw3:150 },
+  'ɘ': { type:'vowel', name:'半闭中央元音', desc:'舌位半高中',
+    f1:430, f2:1450, f3:2300, bw1:70, bw2:130, bw3:150 },
+  'o': { type:'vowel', name:'半闭后圆唇元音', desc:'舌位半高后，唇圆',
+    f1:450, f2:800, f3:2400, bw1:80, bw2:110, bw3:150 },
+  'ə': { type:'vowel', name:'中央元音', desc:'舌位居中，最自然状态',
+    f1:500, f2:1500, f2b:2500, f3:2500, bw1:80, bw2:120, bw3:150 },
+  'ɛ': { type:'vowel', name:'半开前不圆唇元音', desc:'舌位半低前',
+    f1:530, f2:1850, f3:2500, bw1:90, bw2:130, bw3:150 },
+  'œ': { type:'vowel', name:'半开前圆唇元音', desc:'舌位如ɛ，唇圆',
+    f1:540, f2:1550, f3:2300, bw1:90, bw2:140, bw3:160 },
+  'ɜ': { type:'vowel', name:'半开中央不圆唇元音', desc:'舌位半低中',
+    f1:560, f2:1450, f3:2350, bw1:90, bw2:140, bw3:160 },
+  'ʌ': { type:'vowel', name:'半开后不圆唇元音', desc:'舌位半低后不圆唇',
+    f1:600, f2:1170, f3:2400, bw1:90, bw2:130, bw3:150 },
+  'ɔ': { type:'vowel', name:'半开后圆唇元音', desc:'舌位半低后圆唇',
+    f1:570, f2:840, f3:2410, bw1:90, bw2:130, bw3:150 },
+  'æ': { type:'vowel', name:'次开前不圆唇元音', desc:'舌位接近最低最前',
+    f1:700, f2:1750, f3:2500, bw1:100, bw2:140, bw3:160 },
+  'ɐ': { type:'vowel', name:'次开中央元音', desc:'舌位接近最低中',
+    f1:680, f2:1450, f3:2400, bw1:100, bw2:140, bw3:160 },
+  'a': { type:'vowel', name:'开前不圆唇元音', desc:'舌位最低前，声道最短最开',
+    f1:850, f2:1550, f3:2500, bw1:110, bw2:140, bw3:160 },
+  'ɑ': { type:'vowel', name:'开后不圆唇元音', desc:'舌位最低后',
+    f1:800, f2:1100, f3:2500, bw1:110, bw2:150, bw3:160 },
+  'ɒ': { type:'vowel', name:'开后圆唇元音', desc:'舌位最低后圆唇',
+    f1:780, f2:950, f3:2400, bw1:110, bw2:160, bw3:170 },
+
+  // ─── 塞音 ───
+  // 三个阶段：闭塞（静音或低频浊音）→ 爆破（短脉冲）→ 共振峰过渡
+  // 不同部位的爆破脉冲有不同的频率重心和频谱倾斜
+  'p': { type:'stop', name:'清双唇塞音', desc:'双唇闭塞，爆破频率低',
+    voiced:false, closure:0.07, burstFreq:500, burstBW:1800, burstDur:0.005,
+    vot:0.045, loci:[600,1100,2600], burstGain:0.5 },
+  'b': { type:'stop', name:'浊双唇塞音', desc:'双唇闭塞，声带振动',
+    voiced:true, closure:0.06, burstFreq:500, burstBW:1800, burstDur:0.005,
+    vot:-0.02, loci:[600,1100,2600], burstGain:0.5, closureF0:90 },
+  't': { type:'stop', name:'清齿龈塞音', desc:'舌尖抵齿龈，爆破高频集中',
+    voiced:false, closure:0.075, burstFreq:4500, burstBW:2500, burstDur:0.003,
+    vot:0.05, loci:[300,1800,2700], burstGain:0.5 },
+  'd': { type:'stop', name:'浊齿龈塞音', desc:'舌尖抵齿龈，声带振动',
+    voiced:true, closure:0.065, burstFreq:4500, burstBW:2500, burstDur:0.003,
+    vot:-0.025, loci:[300,1800,2700], burstGain:0.5, closureF0:90 },
+  'ʈ': { type:'stop', name:'清卷舌塞音', desc:'舌尖卷起抵硬腭',
+    voiced:false, closure:0.075, burstFreq:3500, burstBW:2200, burstDur:0.004,
+    vot:0.05, loci:[300,1500,2600], burstGain:0.5 },
+  'ɖ': { type:'stop', name:'浊卷舌塞音', desc:'舌尖卷起抵硬腭，声带振动',
+    voiced:true, closure:0.065, burstFreq:3500, burstBW:2200, burstDur:0.004,
+    vot:-0.025, loci:[300,1500,2600], burstGain:0.5, closureF0:90 },
+  'c': { type:'stop', name:'清硬腭塞音', desc:'舌面抵硬腭',
+    voiced:false, closure:0.07, burstFreq:2800, burstBW:2200, burstDur:0.004,
+    vot:0.045, loci:[300,2200,2700], burstGain:0.5 },
+  'ɟ': { type:'stop', name:'浊硬腭塞音', desc:'舌面抵硬腭，声带振动',
+    voiced:true, closure:0.06, burstFreq:2800, burstBW:2200, burstDur:0.004,
+    vot:-0.02, loci:[300,2200,2700], burstGain:0.5, closureF0:90 },
+  'k': { type:'stop', name:'清软腭塞音', desc:'舌根抵软腭，爆破频率中等',
+    voiced:false, closure:0.08, burstFreq:1800, burstBW:2500, burstDur:0.005,
+    vot:0.05, loci:[300,1100,2300], burstGain:0.5 },
+  'g': { type:'stop', name:'浊软腭塞音', desc:'舌根抵软腭，声带振动',
+    voiced:true, closure:0.07, burstFreq:1800, burstBW:2500, burstDur:0.005,
+    vot:-0.02, loci:[300,1100,2300], burstGain:0.5, closureF0:90 },
+  'q': { type:'stop', name:'清小舌塞音', desc:'舌根抵小舌',
+    voiced:false, closure:0.07, burstFreq:1500, burstBW:2200, burstDur:0.005,
+    vot:0.05, loci:[300,1000,2200], burstGain:0.5 },
+  'ʔ': { type:'stop', name:'声门塞音', desc:'声门闭合后释放，无loci过渡',
+    voiced:false, closure:0.05, burstFreq:1500, burstBW:3000, burstDur:0.002,
+    vot:0.015, loci:[400,1500,2500], burstGain:0.3 },
+
+  // ─── 鼻音 ───
+  // 软腭下降打开鼻腔通道，口腔闭合处形成死腔
+  // 鼻共振~250-300Hz，反共振零点频率取决于口腔闭合部位
+  'm': { type:'nasal', name:'双唇鼻音', desc:'双唇闭塞，气流经鼻腔',
+    f0:110, dur:0.12, nasalPole:250, nasalZero:800, antiResQ:6,
+    loci:[300,1100,2400], additionalPoles:[[1100,8],[2200,10]] },
+  'ɱ': { type:'nasal', name:'唇齿鼻音', desc:'下唇抵上齿，气流经鼻腔',
+    f0:110, dur:0.1, nasalPole:250, nasalZero:900, antiResQ:6,
+    loci:[300,1200,2400], additionalPoles:[[1200,8],[2300,10]] },
+  'n': { type:'nasal', name:'齿龈鼻音', desc:'舌尖抵齿龈，气流经鼻腔',
+    f0:110, dur:0.12, nasalPole:280, nasalZero:1100, antiResQ:7,
+    loci:[300,1700,2500], additionalPoles:[[1300,8],[2300,10]] },
+  'ɳ': { type:'nasal', name:'卷舌鼻音', desc:'舌尖卷起抵硬腭',
+    f0:110, dur:0.12, nasalPole:280, nasalZero:1200, antiResQ:7,
+    loci:[300,1500,2500], additionalPoles:[[1400,8],[2400,10]] },
+  'ɲ': { type:'nasal', name:'硬腭鼻音', desc:'舌面抵硬腭',
+    f0:110, dur:0.12, nasalPole:280, nasalZero:1600, antiResQ:7,
+    loci:[300,2200,2600], additionalPoles:[[1800,8],[2500,10]] },
+  'ŋ': { type:'nasal', name:'软腭鼻音', desc:'舌根抵软腭',
+    f0:110, dur:0.12, nasalPole:280, nasalZero:1300, antiResQ:7,
+    loci:[300,1100,2300], additionalPoles:[[1500,8],[2400,10]] },
+  'ɴ': { type:'nasal', name:'小舌鼻音', desc:'舌根抵小舌',
+    f0:110, dur:0.1, nasalPole:280, nasalZero:1200, antiResQ:7,
+    loci:[300,1000,2200], additionalPoles:[[1400,8],[2300,10]] },
+
+  // ─── 擦音 ───
+  // 持续湍流噪声，谱形取决于发音部位狭窄处的位置和形状
+  // 频谱重心从唇齿到龈后逐渐升高，硬腭/软腭处又降低
+  'ɸ': { type:'fric', name:'清双唇擦音', desc:'双唇接近，噪声低频分散',
+    voiced:false, dur:0.15, noiseGain:-22, center:3500, bw:3500, tilt:-6 },
+  'β': { type:'fric', name:'浊双唇擦音', desc:'双唇接近，声带振动',
+    voiced:true, dur:0.15, noiseGain:-28, center:3500, bw:3500, tilt:-6, f0:110 },
+  'f': { type:'fric', name:'清唇齿擦音', desc:'下唇抵上齿，噪声低频较平',
+    voiced:false, dur:0.15, noiseGain:-18, center:4500, bw:3500, tilt:-6 },
+  'v': { type:'fric', name:'浊唇齿擦音', desc:'下唇抵上齿，声带振动',
+    voiced:true, dur:0.15, noiseGain:-25, center:4500, bw:3500, tilt:-6, f0:110 },
+  'θ': { type:'fric', name:'清齿擦音', desc:'舌尖抵上齿，噪声较分散',
+    voiced:false, dur:0.15, noiseGain:-22, center:5500, bw:4000, tilt:-8 },
+  'ð': { type:'fric', name:'浊齿擦音', desc:'舌尖抵上齿，声带振动',
+    voiced:true, dur:0.15, noiseGain:-30, center:5500, bw:4000, tilt:-8, f0:110 },
+  's': { type:'fric', name:'清齿龈擦音', desc:'舌尖近齿龈，高频噪声集中，尖锐',
+    voiced:false, dur:0.15, noiseGain:-12, center:7000, bw:3000, tilt:-10 },
+  'z': { type:'fric', name:'浊齿龈擦音', desc:'舌尖近齿龈，声带振动',
+    voiced:true, dur:0.15, noiseGain:-20, center:7000, bw:3000, tilt:-10, f0:110 },
+  'ʃ': { type:'fric', name:'清龈后擦音', desc:'舌尖靠后，噪声较s低沉圆润',
+    voiced:false, dur:0.15, noiseGain:-15, center:4500, bw:2500, tilt:-9 },
+  'ʒ': { type:'fric', name:'浊龈后擦音', desc:'舌尖靠后，声带振动',
+    voiced:true, dur:0.15, noiseGain:-23, center:4500, bw:2500, tilt:-9, f0:110 },
+  'ʂ': { type:'fric', name:'清卷舌擦音', desc:'舌尖卷起靠后',
+    voiced:false, dur:0.15, noiseGain:-16, center:4000, bw:2500, tilt:-8 },
+  'ʐ': { type:'fric', name:'浊卷舌擦音', desc:'舌尖卷起靠后，声带振动',
+    voiced:true, dur:0.15, noiseGain:-24, center:4000, bw:2500, tilt:-8, f0:110 },
+  'ç': { type:'fric', name:'清硬腭擦音', desc:'舌面近硬腭，高频但分散',
+    voiced:false, dur:0.15, noiseGain:-17, center:5500, bw:3000, tilt:-8 },
+  'ʝ': { type:'fric', name:'浊硬腭擦音', desc:'舌面近硬腭，声带振动',
+    voiced:true, dur:0.15, noiseGain:-25, center:5500, bw:3000, tilt:-8, f0:110 },
+  'x': { type:'fric', name:'清软腭擦音', desc:'舌根近软腭，噪声中频集中',
+    voiced:false, dur:0.15, noiseGain:-16, center:2500, bw:2000, tilt:-7 },
+  'ɣ': { type:'fric', name:'浊软腭擦音', desc:'舌根近软腭，声带振动',
+    voiced:true, dur:0.15, noiseGain:-24, center:2500, bw:2000, tilt:-7, f0:110 },
+  'χ': { type:'fric', name:'清小舌擦音', desc:'舌根近小舌，强烈湍流',
+    voiced:false, dur:0.15, noiseGain:-17, center:2000, bw:2500, tilt:-6 },
+  'ʁ': { type:'fric', name:'浊小舌擦音', desc:'舌根近小舌，声带振动',
+    voiced:true, dur:0.15, noiseGain:-25, center:2000, bw:2500, tilt:-6, f0:110 },
+  'h': { type:'fric', name:'清声门擦音', desc:'声门微开，气流直接通过，谱近元音',
+    voiced:false, dur:0.12, noiseGain:-18, center:1500, bw:4000, tilt:-3 },
+  'ɦ': { type:'fric', name:'浊声门擦音', desc:'声门微开但振动，谱近元音',
+    voiced:true, dur:0.12, noiseGain:-26, center:1500, bw:4000, tilt:-3, f0:110 },
+  'ɬ': { type:'fric', name:'清边擦音', desc:'舌侧留通道产生湍流',
+    voiced:false, dur:0.15, noiseGain:-18, center:5000, bw:3000, tilt:-8 },
+  'ɮ': { type:'fric', name:'浊边擦音', desc:'舌侧留通道，声带振动',
+    voiced:true, dur:0.15, noiseGain:-26, center:5000, bw:3000, tilt:-8, f0:110 },
+
+  // ─── 塞擦音 ───
+  // 闭塞 + 缓慢释放为擦音
+  'tʃ': { type:'affricate', name:'清龈后塞擦音', desc:'先闭塞后缓慢释放为ʃ',
+    voiced:false, closure:0.06, fricDur:0.09, burstFreq:4500, burstBW:2500,
+    noiseGain:-15, center:4500, bw:2500, tilt:-9, loci:[300,1800,2700] },
+  'dʒ': { type:'affricate', name:'浊龈后塞擦音', desc:'先闭塞后缓慢释放为ʒ',
+    voiced:true, closure:0.05, fricDur:0.09, burstFreq:4500, burstBW:2500,
+    noiseGain:-23, center:4500, bw:2500, tilt:-9, loci:[300,1800,2700], closureF0:90 },
+  'ts': { type:'affricate', name:'清齿龈塞擦音', desc:'先闭塞后缓慢释放为s',
+    voiced:false, closure:0.06, fricDur:0.08, burstFreq:4500, burstBW:2500,
+    noiseGain:-12, center:7000, bw:3000, tilt:-10, loci:[300,1800,2700] },
+  'dz': { type:'affricate', name:'浊齿龈塞擦音', desc:'先闭塞后缓慢释放为z',
+    voiced:true, closure:0.05, fricDur:0.08, burstFreq:4500, burstBW:2500,
+    noiseGain:-20, center:7000, bw:3000, tilt:-10, loci:[300,1800,2700], closureF0:90 },
+  'tɕ': { type:'affricate', name:'清龈腭塞擦音', desc:'舌面闭塞后释放',
+    voiced:false, closure:0.06, fricDur:0.09, burstFreq:5000, burstBW:2500,
+    noiseGain:-15, center:5500, bw:2800, tilt:-8, loci:[300,2200,2700] },
+  'dʑ': { type:'affricate', name:'浊龈腭塞擦音', desc:'舌面闭塞后释放',
+    voiced:true, closure:0.05, fricDur:0.09, burstFreq:5000, burstBW:2500,
+    noiseGain:-23, center:5500, bw:2800, tilt:-8, loci:[300,2200,2700], closureF0:90 },
+
+  // ─── 近音/滑音 ───
+  // 类元音的声道形状但更短、过渡性更强
+  'w': { type:'glide', name:'双唇软腭近音', desc:'圆唇同时舌根后缩，类u过渡',
+    f0:110, dur:0.12, f1:300, f2:700, f3:2400, bw1:80, bw2:100, bw3:150,
+    loci:[300,700,2400] },
+  'ɥ': { type:'glide', name:'唇硬腭近音', desc:'圆唇同时舌面前，类y过渡',
+    f0:110, dur:0.12, f1:280, f2:1800, f3:2300, bw1:60, bw2:120, bw3:150,
+    loci:[280,1800,2300] },
+  'ʋ': { type:'glide', name:'唇齿近音', desc:'下唇接近上齿',
+    f0:110, dur:0.1, f1:300, f2:1200, f3:2300, bw1:70, bw2:130, bw3:150,
+    loci:[300,1200,2300] },
+  'ɹ': { type:'glide', name:'齿龈近音', desc:'舌尖近齿龈，英语r',
+    f0:110, dur:0.12, f1:330, f2:1300, f3:1600, bw1:80, bw2:130, bw3:200,
+    loci:[330,1300,1600] },
+  'ɻ': { type:'glide', name:'卷舌近音', desc:'舌尖卷起，F3特别低',
+    f0:110, dur:0.12, f1:340, f2:1100, f3:1800, bw1:80, bw2:140, bw3:200,
+    loci:[340,1100,1800] },
+  'j': { type:'glide', name:'硬腭近音', desc:'舌面近硬腭，类i过渡',
+    f0:110, dur:0.1, f1:280, f2:2200, f3:2900, bw1:50, bw2:110, bw3:130,
+    loci:[280,2200,2900] },
+  'ɰ': { type:'glide', name:'软腭近音', desc:'舌根近软腭，类ɯ过渡',
+    f0:110, dur:0.1, f1:310, f2:900, f3:2400, bw1:70, bw2:110, bw3:150,
+    loci:[310,900,2400] },
+
+  // ─── 边音 ───
+  // 口腔中部闭塞但舌侧开放，有独特的反共振零点
+  'l': { type:'liquid', name:'齿龈边近音', desc:'舌尖抵齿龈，舌侧开放',
+    f0:110, dur:0.13, f1:350, f2:1300, f3:2700, bw1:60, bw2:120, bw3:150,
+    zero:1700, zeroQ:8, loci:[350,1300,2700] },
+  'ɫ': { type:'liquid', name:'软腭化齿龈边近音', desc:'舌根同时抬高',
+    f0:110, dur:0.13, f1:300, f2:1000, f3:2600, bw1:70, bw2:130, bw3:160,
+    zero:1500, zeroQ:8, loci:[300,1000,2600] },
+  'ɭ': { type:'liquid', name:'卷舌边近音', desc:'舌尖卷起抵硬腭',
+    f0:110, dur:0.13, f1:330, f2:1100, f3:2600, bw1:70, bw2:130, bw3:160,
+    zero:1600, zeroQ:8, loci:[330,1100,2600] },
+  'ʎ': { type:'liquid', name:'硬腭边近音', desc:'舌面抵硬腭',
+    f0:110, dur:0.13, f1:300, f2:2000, f3:2800, bw1:60, bw2:120, bw3:150,
+    zero:2200, zeroQ:8, loci:[300,2000,2800] },
+  'ʟ': { type:'liquid', name:'软腭边近音', desc:'舌根抵软腭',
+    f0:110, dur:0.13, f1:280, f2:900, f3:2400, bw1:70, bw2:110, bw3:150,
+    zero:1300, zeroQ:8, loci:[280,900,2400] },
+
+  // ─── 颤音/弹音 ───
+  // 颤音：发声器周期性开合
+  // 弹音：单次短暂接触
+  'r': { type:'trill', name:'齿龈颤音', desc:'舌尖周期性拍打齿龈',
+    f0:110, dur:0.13, tapRate:28, f1:350, f2:1500, f3:2500, 
+    bw1:80, bw2:130, bw3:160, loci:[350,1500,2500] },
+  'ɾ': { type:'tap', name:'齿龈弹音', desc:'舌尖单次轻拍齿龈',
+    f0:110, dur:0.04, f1:400, f2:1600, f3:2500,
+    bw1:90, bw2:140, bw3:170, loci:[400,1600,2500] },
+  'ʀ': { type:'trill', name:'小舌颤音', desc:'小舌周期性振动',
+    f0:110, dur:0.12, tapRate:25, f1:350, f2:1000, f3:2400,
+    bw1:90, bw2:130, bw3:160, loci:[350,1000,2400] },
+  'ʙ': { type:'trill', name:'双唇颤音', desc:'双唇周期性开合',
+    f0:110, dur:0.12, tapRate:22, f1:300, f2:900, f3:2300,
+    bw1:90, bw2:130, bw3:160, loci:[300,900,2300] },
+};
+
+// ════════════════════════════════════════════════════════════════
+// 发声合成引擎
+// ════════════════════════════════════════════════════════════════
+
+class VocalSynth {
+  constructor() {
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.5;
+    
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0.7;
+    
+    this.master.connect(this.analyser);
+    this.analyser.connect(this.ctx.destination);
+    
+    this.activeNodes = [];
+    this.f0Offset = 0;
+    this.rate = 1.0;
+  }
+  
+  now() { return this.ctx.currentTime; }
+  
+  // ─── 声门脉冲源 ───
+  // 用锯齿波近似声门气流，再经过低通滤波模拟声门谱的-12dB/oct衰减
+  createGlottalSource(f0, duration, startTime, gain = 0.3) {
+    f0 = Math.max(40, f0 + this.f0Offset);
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(f0, startTime);
+    
+    // 声门谱倾斜：高频衰减约-12dB/oct
+    const spectralTilt = this.ctx.createBiquadFilter();
+    spectralTilt.type = 'lowpass';
+    spectralTilt.frequency.value = Math.max(200, f0 * 3.5);
+    spectralTilt.Q.value = 0.7;
+    
+    // 二阶低通使衰减更接近真实声门波
+    const spectralTilt2 = this.ctx.createBiquadFilter();
+    spectralTilt2.type = 'lowpass';
+    spectralTilt2.frequency.value = Math.max(400, f0 * 6);
+    spectralTilt2.Q.value = 0.5;
+    
+    const g = this.ctx.createGain();
+    g.gain.value = gain;
+    
+    osc.connect(spectralTilt);
+    spectralTilt.connect(spectralTilt2);
+    spectralTilt2.connect(g);
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.01);
+    
+    this.activeNodes.push(osc, spectralTilt, spectralTilt2, g);
+    return { output: g, osc };
+  }
+  
+  // ─── 噪声源 ───
+  // 白噪声缓冲区，预先生成以避免重复创建
+  getNoiseBuffer(duration) {
+    const len = Math.ceil(this.ctx.sampleRate * duration);
+    const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    // 用更白的噪声：Box-Muller生成高斯白噪声
+    for (let i = 0; i < len; i++) {
+      const u1 = Math.random() || 1e-9;
+      const u2 = Math.random();
+      data[i] = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2) * 0.3;
+    }
+    return buffer;
+  }
+  
+  createNoiseSource(duration, startTime) {
+    const source = this.ctx.createBufferSource();
+    source.buffer = this.getNoiseBuffer(duration + 0.05);
+    source.loop = true;
+    source.start(startTime);
+    source.stop(startTime + duration + 0.05);
+    this.activeNodes.push(source);
+    return source;
+  }
+  
+  // ─── 爆破脉冲 ───
+  // 闭塞释放瞬间的短噪声脉冲，时长几毫秒
+  createBurst(freq, bw, startTime, duration = 0.005, gain = 0.5) {
+    const len = Math.ceil(this.ctx.sampleRate * (duration + 0.05));
+    const buffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      const t = i / this.ctx.sampleRate;
+      // 指数衰减包络
+      const env = Math.exp(-t * 300);
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = Math.max(100, freq);
+    bp.Q.value = Math.max(0.5, freq / Math.max(50, bw));
+    
+    const g = this.ctx.createGain();
+    g.gain.value = gain;
+    
+    source.connect(bp);
+    bp.connect(g);
+    source.start(startTime);
+    
+    this.activeNodes.push(source, bp, g);
+    return g;
+  }
+  
+  // ─── 共振峰滤波器组 ───
+  // 串联多个带通滤波器形成声道传递函数
+  // 每个共振峰用一个BiquadFilter的bandpass实现
+  createFormantChain(input, formants, startTime, endTime) {
+    let node = input;
+    formants.forEach((f, i) => {
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = Math.max(50, f.freq);
+      filter.Q.value = Math.max(0.5, f.freq / Math.max(20, f.bw));
+      
+      // 支持共振峰轨迹（过渡）
+      if (f.startFreq !== undefined && f.endFreq !== undefined) {
+        filter.frequency.setValueAtTime(Math.max(50, f.startFreq), startTime);
+        filter.frequency.linearRampToValueAtTime(Math.max(50, f.endFreq), endTime);
+      }
+      
+      node.connect(filter);
+      node = filter;
+      this.activeNodes.push(filter);
+    });
+    return node;
+  }
+  
+  // ─── 反共振零点（鼻音和边音） ───
+  createZero(input, freq, q, startTime) {
+    const notch = this.ctx.createBiquadFilter();
+    notch.type = 'notch';
+    notch.frequency.value = Math.max(50, freq);
+    notch.Q.value = Math.max(0.5, q);
+    input.connect(notch);
+    this.activeNodes.push(notch);
+    return notch;
+  }
+  
+  // ─── 谱倾斜 ───
+  applySpectralTilt(input, tiltDb, cornerFreq) {
+    const tilt = this.ctx.createBiquadFilter();
+    tilt.type = 'lowshelf';
+    tilt.frequency.value = Math.max(100, cornerFreq);
+    tilt.gain.value = tiltDb;
+    input.connect(tilt);
+    this.activeNodes.push(tilt);
+    return tilt;
+  }
+  
+  // ─── 主合成入口 ───
+  synth(ipa, startTime, nextIpa) {
+    const p = IPA[ipa];
+    if (!p) return startTime;
+    
+    const rate = this.rate;
+    
+    switch (p.type) {
+      case 'vowel': return this.synthVowel(p, startTime, rate);
+      case 'stop': return this.synthStop(p, startTime, nextIpa, rate);
+      case 'fric': return this.synthFricative(p, startTime, rate);
+      case 'nasal': return this.synthNasal(p, startTime, nextIpa, rate);
+      case 'glide': return this.synthGlide(p, startTime, nextIpa, rate);
+      case 'liquid': return this.synthLateral(p, startTime, nextIpa, rate);
+      case 'trill': return this.synthTrill(p, startTime, rate);
+      case 'tap': return this.synthTap(p, startTime, nextIpa, rate);
+      case 'affricate': return this.synthAffricate(p, startTime, nextIpa, rate);
+    }
+    return startTime;
+  }
+  
+  // ─── 元音合成 ───
+  // 声门脉冲 → 共振峰滤波器组 → 输出
+  synthVowel(p, t, rate) {
+    const dur = 0.28 / rate;
+    const source = this.createGlottalSource(p.f0 || 120, dur, t, 0.35);
+    
+    const formants = [
+      { freq: p.f1, bw: p.bw1 },
+      { freq: p.f2, bw: p.bw2 },
+      { freq: p.f3, bw: p.bw3 },
+      { freq: (p.f3 || 2500) * 1.3, bw: 200 } // F4
+    ];
+    
+    const chain = this.createFormantChain(source.output, formants, t, t + dur);
+    
+    // 振幅包络：起音-稳定-释放
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.8, t + 0.02 / rate);
+    env.gain.setValueAtTime(0.8, t + dur - 0.06 / rate);
+    env.gain.linearRampToValueAtTime(0, t + dur);
+    
+    chain.connect(env);
+    env.connect(this.master);
+    this.activeNodes.push(env);
+    
+    return t + dur;
+  }
+  
+  // ─── 塞音合成 ───
+  // 三个阶段：闭塞期（浊音有低频声带音）→ 爆破脉冲 → 共振峰过渡到后续元音
+  synthStop(p, t, nextIpa, rate) {
+    const closureDur = p.closure / rate;
+    const closureEnd = t + closureDur;
+    const vot = p.vot / rate;
+    
+    // 1. 闭塞期
+    if (p.voiced && p.closureF0) {
+      // 浊塞音：声带振动但口腔闭合，低频从喉咙壁传出
+      const source = this.createGlottalSource(p.closureF0, closureDur, t, 0.2);
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 280;
+      lp.Q.value = 0.7;
+      
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.15, t + 0.01);
+      g.gain.setValueAtTime(0.15, closureEnd - 0.005);
+      g.gain.linearRampToValueAtTime(0, closureEnd);
+      
+      source.output.connect(lp);
+      lp.connect(g);
+      g.connect(this.master);
+      this.activeNodes.push(lp, g);
+    }
+    // 清塞音闭塞期为静音
+    
+    // 2. 爆破脉冲（释放瞬间）
+    const burstTime = closureEnd;
+    if (p.burstDur > 0) {
+      const burst = this.createBurst(p.burstFreq, p.burstBW, burstTime, p.burstDur, p.burstGain);
+      burst.connect(this.master);
+    }
+    
+    // 3. 共振峰过渡（VOT后到后续元音）
+    const transStart = burstTime + Math.max(0.005, vot);
+    const next = nextIpa && IPA[nextIpa];
+    
+    if (next && next.type === 'vowel') {
+      // 从loci过渡到后续元音的共振峰
+      const transDur = 0.07 / rate;
+      const vowelStart = transStart;
+      const vowelDur = 0.22 / rate;
+      const totalDur = transDur + vowelDur;
+      
+      const source = this.createGlottalSource(next.f0 || 120, totalDur, vowelStart, 0.35);
+      
+      // 共振峰从塞音loci过渡到元音目标
+      const formants = [
+        { startFreq: p.loci[0], endFreq: next.f1, bw: next.bw1 },
+        { startFreq: p.loci[1], endFreq: next.f2, bw: next.bw2 },
+        { startFreq: p.loci[2], endFreq: next.f3, bw: next.bw3 }
+      ];
+      
+      // 过渡期使用频率扫描
+      const chain = this.createFormantChain(source.output, formants, vowelStart, vowelStart + transDur);
+      
+      const env = this.ctx.createGain();
+      env.gain.setValueAtTime(0, vowelStart);
+      env.gain.linearRampToValueAtTime(0.8, vowelStart + 0.015);
+      env.gain.setValueAtTime(0.8, vowelStart + totalDur - 0.05);
+      env.gain.linearRampToValueAtTime(0, vowelStart + totalDur);
+      
+      chain.connect(env);
+      env.connect(this.master);
+      this.activeNodes.push(env);
+      
+      return vowelStart + totalDur;
+    } else {
+      // 无后续元音：只保留短过渡
+      const transDur = 0.05 / rate;
+      const source = this.createGlottalSource(120, transDur, transStart, 0.2);
+      const formants = p.loci.map(f => ({ freq: f, bw: 120 }));
+      const chain = this.createFormantChain(source.output, formants, transStart, transStart + transDur);
+      
+      const env = this.ctx.createGain();
+      env.gain.setValueAtTime(0, transStart);
+      env.gain.linearRampToValueAtTime(0.4, transStart + 0.01);
+      env.gain.exponentialRampToValueAtTime(0.001, transStart + transDur);
+      
+      chain.connect(env);
+      env.connect(this.master);
+      this.activeNodes.push(env);
+      
+      return transStart + transDur;
+    }
+  }
+  
+  // ─── 擦音合成 ───
+  // 噪声源 → 带通滤波（着色）→ 谱倾斜 → 输出
+  synthFricative(p, t, rate) {
+    const dur = p.dur / rate;
+    const noise = this.createNoiseSource(dur, t);
+    
+    // 噪声着色：带通滤波器决定噪声频谱重心
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = Math.max(100, p.center);
+    bp.Q.value = Math.max(0.3, p.center / Math.max(100, p.bw));
+    
+    // 高通切除过低频率，增强擦音特征
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = Math.max(100, p.center * 0.4);
+    hp.Q.value = 0.5;
+    
+    let node = noise;
+    node.connect(bp);
+    node = bp;
+    node.connect(hp);
+    node = hp;
+    
+    // 谱倾斜
+    if (p.tilt) {
+      node = this.applySpectralTilt(node, p.tilt + 3, p.center * 0.3);
+    }
+    
+    // 浊擦音：加入声门源
+    if (p.voiced && p.f0) {
+      const vsource = this.createGlottalSource(p.f0, dur, t, 0.15);
+      // 浊音成分通过更低频的滤波
+      const vlp = this.ctx.createBiquadFilter();
+      vlp.type = 'lowpass';
+      vlp.frequency.value = 1200;
+      vlp.Q.value = 0.7;
+      vsource.output.connect(vlp);
+      vlp.connect(node);
+      this.activeNodes.push(vlp);
+    }
+    
+    // 振幅包络
+    const env = this.ctx.createGain();
+    const targetGain = Math.pow(10, p.noiseGain / 20);
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(targetGain, t + 0.025 / rate);
+    env.gain.setValueAtTime(targetGain, t + dur - 0.04 / rate);
+    env.gain.linearRampToValueAtTime(0, t + dur);
+    
+    node.connect(env);
+    env.connect(this.master);
+    this.activeNodes.push(bp, hp, env);
+    
+    return t + dur;
+  }
+  
+  // ─── 鼻音合成 ───
+  // 声门源 → 鼻腔共振（低频极点）+ 口腔反共振（零点）→ 输出
+  synthNasal(p, t, nextIpa, rate) {
+    const dur = p.dur / rate;
+    const source = this.createGlottalSource(p.f0, dur, t, 0.3);
+    
+    // 鼻音的声道传递函数：
+    // 1. 鼻腔低频共振（~250-300Hz）：低通 + 峰值
+    // 2. 口腔死腔反共振零点：notch滤波器
+    
+    // 鼻腔主共振
+    const nasalLP = this.ctx.createBiquadFilter();
+    nasalLP.type = 'lowpass';
+    nasalLP.frequency.value = 1000;
+    nasalLP.Q.value = 0.7;
+    
+    // 鼻共振峰
+    const nasalPeak = this.ctx.createBiquadFilter();
+    nasalPeak.type = 'peaking';
+    nasalPeak.frequency.value = Math.max(100, p.nasalPole);
+    nasalPeak.Q.value = 4;
+    nasalPeak.gain.value = 6;
+    
+    let node = source.output;
+    node.connect(nasalLP);
+    node = nasalLP;
+    node.connect(nasalPeak);
+    node = nasalPeak;
+    
+    // 额外鼻共振极点
+    if (p.additionalPoles) {
+      p.additionalPoles.forEach(([freq, q]) => {
+        const peak = this.ctx.createBiquadFilter();
+        peak.type = 'peaking';
+        peak.frequency.value = Math.max(50, freq);
+        peak.Q.value = q;
+        peak.gain.value = 3;
+        node.connect(peak);
+        node = peak;
+        this.activeNodes.push(peak);
+      });
+    }
+    
+    // 反共振零点
+    node = this.createZero(node, p.nasalZero, p.antiResQ, t);
+    
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.55, t + 0.02 / rate);
+    env.gain.setValueAtTime(0.55, t + dur - 0.03 / rate);
+    env.gain.linearRampToValueAtTime(0, t + dur);
+    
+    node.connect(env);
+    env.connect(this.master);
+    this.activeNodes.push(nasalLP, nasalPeak, env);
+    
+    // 过渡到后续元音
+    if (nextIpa && IPA[nextIpa] && IPA[nextIpa].type === 'vowel') {
+      const next = IPA[nextIpa];
+      const transDur = 0.05 / rate;
+      const transStart = t + dur - 0.015;
+      const vowelDur = 0.22 / rate;
+      
+      const tSource = this.createGlottalSource(next.f0 || 120, transDur + vowelDur, transStart, 0.35);
+      
+      const formants = [
+        { startFreq: p.loci[0], endFreq: next.f1, bw: next.bw1 },
+        { startFreq: p.loci[1], endFreq: next.f2, bw: next.bw2 },
+        { startFreq: p.loci[2], endFreq: next.f3, bw: next.bw3 }
+      ];
+      
+      const chain = this.createFormantChain(tSource.output, formants, transStart, transStart + transDur);
+      
+      const tEnv = this.ctx.createGain();
+      tEnv.gain.setValueAtTime(0, transStart);
+      tEnv.gain.linearRampToValueAtTime(0.8, transStart + 0.02);
+      tEnv.gain.setValueAtTime(0.8, transStart + transDur + vowelDur - 0.05);
+      tEnv.gain.linearRampToValueAtTime(0, transStart + transDur + vowelDur);
+      
+      chain.connect(tEnv);
+      tEnv.connect(this.master);
+      this.activeNodes.push(tEnv);
+      
+      return transStart + transDur + vowelDur;
+    }
+    
+    return t + dur;
+  }
+  
+  // ─── 滑音/近音合成 ───
+  // 类元音但短，共振峰从loci过渡到后续元音
+  synthGlide(p, t, nextIpa, rate) {
+    const dur = p.dur / rate;
+    const source = this.createGlottalSource(p.f0, dur, t, 0.3);
+    
+    const formants = [
+      { freq: p.f1, bw: p.bw1 },
+      { freq: p.f2, bw: p.bw2 },
+      { freq: p.f3, bw: p.bw3 }
+    ];
+    
+    const chain = this.createFormantChain(source.output, formants, t, t + dur);
+    
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.6, t + 0.02 / rate);
+    env.gain.setValueAtTime(0.6, t + dur - 0.03 / rate);
+    env.gain.linearRampToValueAtTime(0, t + dur);
+    
+    chain.connect(env);
+    env.connect(this.master);
+    this.activeNodes.push(env);
+    
+    return t + dur;
+  }
+  
+  // ─── 边音合成 ───
+  // 类元音但有反共振零点（舌侧通道产生的声学效应）
+  synthLateral(p, t, nextIpa, rate) {
+    const dur = p.dur / rate;
+    const source = this.createGlottalSource(p.f0, dur, t, 0.3);
+    
+    const formants = [
+      { freq: p.f1, bw: p.bw1 },
+      { freq: p.f2, bw: p.bw2 },
+      { freq: p.f3, bw: p.bw3 }
+    ];
+    
+    let chain = this.createFormantChain(source.output, formants, t, t + dur);
+    
+    // 边音特有的反共振零点
+    chain = this.createZero(chain, p.zero, p.zeroQ, t);
+    
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.65, t + 0.02 / rate);
+    env.gain.setValueAtTime(0.65, t + dur - 0.03 / rate);
+    env.gain.linearRampToValueAtTime(0, t + dur);
+    
+    chain.connect(env);
+    env.connect(this.master);
+    this.activeNodes.push(env);
+    
+    return t + dur;
+  }
+  
+  // ─── 颤音合成 ───
+  // 声带音 + 周期性开闭调制（拍打造成振幅波动）
+  synthTrill(p, t, rate) {
+    const dur = p.dur / rate;
+    const source = this.createGlottalSource(p.f0, dur, t, 0.35);
+    
+    const formants = [
+      { freq: p.f1, bw: p.bw1 },
+      { freq: p.f2, bw: p.bw2 },
+      { freq: p.f3, bw: p.bw3 }
+    ];
+    
+    const chain = this.createFormantChain(source.output, formants, t, t + dur);
+    
+    // 拍打调制：用LFO调制振幅
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.7, t + 0.015 / rate);
+    
+    // 周期性衰减（每次拍打接触时短暂降低振幅）
+    const tapPeriod = 1 / Math.max(5, p.tapRate);
+    let time = t + 0.02;
+    while (time < t + dur - 0.02) {
+      env.gain.setValueAtTime(0.7, time);
+      env.gain.linearRampToValueAtTime(0.15, time + tapPeriod * 0.3);
+      env.gain.linearRampToValueAtTime(0.7, time + tapPeriod * 0.7);
+      time += tapPeriod;
+    }
+    env.gain.linearRampToValueAtTime(0, t + dur);
+    
+    chain.connect(env);
+    env.connect(this.master);
+    this.activeNodes.push(env);
+    
+    return t + dur;
+  }
+  
+  // ─── 弹音合成 ───
+  // 极短的单次接触，类似一个很短的塞音
+  synthTap(p, t, nextIpa, rate) {
+    const dur = p.dur / rate;
+    const source = this.createGlottalSource(p.f0, dur, t, 0.4);
+    
+    const formants = [
+      { freq: p.f1, bw: p.bw1 },
+      { freq: p.f2, bw: p.bw2 },
+      { freq: p.f3, bw: p.bw3 }
+    ];
+    
+    const chain = this.createFormantChain(source.output, formants, t, t + dur);
+    
+    const env = this.ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(0.8, t + 0.005);
+    env.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    
+    chain.connect(env);
+    env.connect(this.master);
+    this.activeNodes.push(env);
+    
+    return t + dur;
+  }
+  
+  // ─── 塞擦音合成 ───
+  // 闭塞 + 爆破 + 持续擦音
+  synthAffricate(p, t, nextIpa, rate) {
+    const closureDur = p.closure / rate;
+    const closureEnd = t + closureDur;
+    
+    // 1. 闭塞期
+    if (p.voiced && p.closureF0) {
+      const source = this.createGlottalSource(p.closureF0, closureDur, t, 0.2);
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 280;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.15, t + 0.01);
+      g.gain.setValueAtTime(0.15, closureEnd - 0.005);
+      g.gain.linearRampToValueAtTime(0, closureEnd);
+      source.output.connect(lp);
+      lp.connect(g);
+      g.connect(this.master);
+      this.activeNodes.push(lp, g);
+    }
+    
+    // 2. 爆破
+    const burst = this.createBurst(p.burstFreq, p.burstBW, closureEnd, 0.004, 0.4);
+    burst.connect(this.master);
+    
+    // 3. 擦音段
+    const fricStart = closureEnd + 0.003;
+    const fricDur = p.fricDur / rate;
+    const noise = this.createNoiseSource(fricDur, fricStart);
+    
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = Math.max(100, p.center);
+    bp.Q.value = Math.max(0.3, p.center / Math.max(100, p.bw));
+    
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = Math.max(100, p.center * 0.4);
+    hp.Q.value = 0.5;
+    
+    let node = noise;
+    node.connect(bp);
+    node = bp;
+    node.connect(hp);
+    node = hp;
+    
+    if (p.tilt) {
+      node = this.applySpectralTilt(node, p.tilt + 3, p.center * 0.3);
+    }
+    
+    const env = this.ctx.createGain();
+    const targetGain = Math.pow(10, p.noiseGain / 20);
+    env.gain.setValueAtTime(0, fricStart);
+    env.gain.linearRampToValueAtTime(targetGain, fricStart + 0.015 / rate);
+    env.gain.setValueAtTime(targetGain, fricStart + fricDur - 0.03 / rate);
+    env.gain.linearRampToValueAtTime(0, fricStart + fricDur);
+    
+    node.connect(env);
+    env.connect(this.master);
+    this.activeNodes.push(bp, hp, env);
+    
+    return fricStart + fricDur;
+  }
+  
+  // ─── 停止所有播放 ───
+  stopAll() {
+    this.activeNodes.forEach(n => {
+      try {
+        if (n.stop) n.stop();
+        if (n.disconnect) n.disconnect();
+      } catch(e) {}
+    });
+    this.activeNodes = [];
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// IPA 解析器：将字符串分割为音素序列
+// ════════════════════════════════════════════════════════════════
+
+function parseIPASequence(str) {
+  // 移除空格和标点
+  str = str.replace(/[\s.,!?;:'"]/g, '');
+  
+  // 多字符音素优先匹配（按长度降序）
+  const multiChar = Object.keys(IPA).filter(k => k.length > 1)
+    .sort((a, b) => b.length - a.length);
+  
+  const result = [];
+  let i = 0;
+  while (i < str.length) {
+    let matched = false;
+    // 先尝试多字符
+    for (const k of multiChar) {
+      if (str.substring(i, i + k.length) === k) {
+        result.push(k);
+        i += k.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      const c = str[i];
+      if (IPA[c]) {
+        result.push(c);
+      }
+      // 忽略未知字符
+      i++;
+    }
+  }
+  return result;
+}
+
+// ════════════════════════════════════════════════════════════════
+// UI 构建
+// ════════════════════════════════════════════════════════════════
+
+const synth = new VocalSynth();
+
+// ─── 元音四边形 ───
+const vowelPositions = {
+  // x: 前(0)-后(1), y: 高(0)-低(1)
+  'i': [0, 0], 'y': [0, 0], 
+  'ɪ': [0.2, 0.15],
+  'e': [0.05, 0.35], 'ø': [0.05, 0.35],
+  'ɘ': [0.45, 0.35],
+  'ə': [0.5, 0.45],
+  'o': [0.85, 0.35],
+  'ɯ': [0.9, 0], 'u': [0.9, 0],
+  'ʊ': [0.75, 0.15],
+  'ɛ': [0.1, 0.6], 'œ': [0.1, 0.6],
+  'ɜ': [0.5, 0.6], 'ʌ': [0.8, 0.6],
+  'ɔ': [0.9, 0.6],
+  'æ': [0.1, 0.85],
+  'ɐ': [0.5, 0.85],
+  'a': [0.05, 0.95], 'ɒ': [0.95, 0.95],
+  'ɑ': [0.95, 0.95]
+};
+
+const roundedVowels = new Set(['y', 'ø', 'œ', 'ʊ', 'o', 'ɔ', 'ɒ', 'u']);
+
+function buildVowelChart() {
+  const chart = document.getElementById('vowelChart');
+  const seen = new Set();
+  
+  Object.entries(vowelPositions).forEach(([ipa, [x, y]]) => {
+    if (seen.has(ipa)) return;
+    seen.add(ipa);
+    
+    const point = document.createElement('div');
+    point.className = 'vowel-point';
+    if (roundedVowels.has(ipa)) point.classList.add('rounded');
+    
+    // 映射到SVG坐标
+    const sx = 40 + x * (320 - x * 40 / 360);
+    const sy = 20 + y * 160;
+    point.style.left = `${(sx / 400) * 100}%`;
+    point.style.top = `${(sy / 200) * 100}%`;
+    
+    point.innerHTML = `<div class="dot">${ipa}</div>`;
+    point.onclick = () => playPhoneme(ipa);
+    chart.appendChild(point);
+  });
+}
+
+// ─── 辅音表 ───
+const consonantPlaces = ['双唇', '唇齿', '齿', '齿龈', '龈后', '卷舌', '硬腭', '软腭', '小舌', '声门'];
+const consonantPlacesShort = ['bilabial', 'labiodental', 'dental', 'alveolar', 'postalv', 'retroflex', 'palatal', 'velar', 'uvular', 'glottal'];
+
+// 辅音数据：按 [place][manner] = [voiceless, voiced]
+const consonantData = {
+  // 塞音
+  stops: {
+    'bilabial': ['p', 'b'],
+    'alveolar': ['t', 'd'],
+    'retroflex': ['ʈ', 'ɖ'],
+    'palatal': ['c', 'ɟ'],
+    'velar': ['k', 'g'],
+    'uvular': ['q', null],
+    'glottal': ['ʔ', null]
+  },
+  // 鼻音
+  nasals: {
+    'bilabial': ['m'],
+    'labiodental': ['ɱ'],
+    'alveolar': ['n'],
+    'retroflex': ['ɳ'],
+    'palatal': ['ɲ'],
+    'velar': ['ŋ'],
+    'uvular': ['ɴ']
+  },
+  // 擦音
+  fricatives: {
+    'bilabial': ['ɸ', 'β'],
+    'labiodental': ['f', 'v'],
+    'dental': ['θ', 'ð'],
+    'alveolar': ['s', 'z'],
+    'postalv': ['ʃ', 'ʒ'],
+    'retroflex': ['ʂ', 'ʐ'],
+    'palatal': ['ç', 'ʝ'],
+    'velar': ['x', 'ɣ'],
+    'uvular': ['χ', 'ʁ'],
+    'glottal': ['h', 'ɦ']
+  },
+  // 近音
+  approximants: {
+    'bilabial': [null, 'w'],
+    'labiodental': [null, 'ʋ'],
+    'alveolar': [null, 'ɹ'],
+    'retroflex': [null, 'ɻ'],
+    'palatal': [null, 'j'],
+    'velar': [null, 'ɰ']
+  },
+  // 边音
+  laterals: {
+    'alveolar': ['l', 'ɫ'],
+    'retroflex': ['ɭ'],
+    'palatal': ['ʎ'],
+    'velar': ['ʟ']
+  },
+  // 颤音
+  trills: {
+    'bilabial': ['ʙ'],
+    'alveolar': ['r'],
+    'uvular': ['ʀ']
+  },
+  // 弹音
+  taps: {
+    'alveolar': ['ɾ']
+  }
+};
+
+const mannerLabels = {
+  stops: { label: '塞音 Plosive', class: 'stop' },
+  nasals: { label: '鼻音 Nasal', class: 'nasal' },
+  fricatives: { label: '擦音 Fricative', class: 'fric' },
+  affricates: { label: '塞擦音 Affricate', class: 'fric' },
+  approximants: { label: '近音 Approximant', class: 'glide' },
+  laterals: { label: '边音 Lateral', class: 'liq' },
+  trills: { label: '颤音 Trill', class: 'liq' },
+  taps: { label: '弹音 Tap/Flap', class: 'liq' }
+};
+
+function buildConsonantTable() {
+  const area = document.getElementById('consonantArea');
+  area.innerHTML = '';
+  
+  // 塞擦音单独一组
+  const affricates = {
+    'alveolar': ['ts', 'dz'],
+    'postalv': ['tʃ', 'dʒ'],
+    'palatal': ['tɕ', 'dʑ']
+  };
+  
+  const groups = [
+    ['stops', consonantData.stops],
+    ['nasals', consonantData.nasals],
+    ['fricatives', consonantData.fricatives],
+    ['affricates', affricates],
+    ['approximants', consonantData.approximants],
+    ['laterals', consonantData.laterals],
+    ['trills', consonantData.trills],
+    ['taps', consonantData.taps]
+  ];
+  
+  groups.forEach(([mannerKey, data]) => {
+    const section = document.createElement('div');
+    section.style.marginBottom = '12px';
+    
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.innerHTML = `<span>${mannerLabels[mannerKey].label}</span>`;
+    section.appendChild(label);
+    
+    const grid = document.createElement('div');
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = `repeat(${consonantPlacesShort.length}, 1fr)`;
+    grid.style.gap = '4px';
+    
+    consonantPlacesShort.forEach(place => {
+      const cell = document.createElement('div');
+      cell.style.display = 'flex';
+      cell.style.flexDirection = 'column';
+      cell.style.gap = '3px';
+      cell.style.alignItems = 'center';
+      
+      const placeLabel = document.createElement('div');
+      placeLabel.style.fontSize = '9px';
+      placeLabel.style.color = 'var(--muted)';
+      placeLabel.style.textAlign = 'center';
+      placeLabel.style.padding = '2px';
+      placeLabel.textContent = consonantPlaces[consonantPlacesShort.indexOf(place)];
+      cell.appendChild(placeLabel);
+      
+      const phonemes = data[place] || [null];
+      phonemes.forEach(p => {
+        if (!p) {
+          const empty = document.createElement('div');
+          empty.style.height = '36px';
+          cell.appendChild(empty);
+          return;
+        }
+        const btn = document.createElement('button');
+        btn.className = `ipa-btn ${mannerLabels[mannerKey].class}`;
+        btn.style.padding = '6px';
+        btn.style.minHeight = '36px';
+        btn.style.fontSize = '16px';
+        btn.textContent = p;
+        btn.onclick = () => playPhoneme(p);
+        cell.appendChild(btn);
+      });
+      
+      grid.appendChild(cell);
+    });
+    
+    section.appendChild(grid);
+    area.appendChild(section);
+  });
+}
+
+// ─── 播放音素 ───
+let currentPlayingBtn = null;
+
+function playPhoneme(ipa, btn) {
+  const p = IPA[ipa];
+  if (!p) return;
+  
+  // 更新信息面板
+  updateInfoPanel(ipa);
+  
+  // 视觉反馈
+  const buttons = document.querySelectorAll('.ipa-btn.playing, .vowel-point .dot.playing');
+  buttons.forEach(b => b.classList.remove('playing'));
+  
+  if (btn) {
+    btn.classList.add('playing');
+    currentPlayingBtn = btn;
+  }
+  
+  // 合成播放
+  if (synth.ctx.state === 'suspended') synth.ctx.resume();
+  
+  const t = synth.now() + 0.05;
+  synth.synth(ipa, t, null);
+  
+  setTimeout(() => {
+    if (currentPlayingBtn === btn) {
+      btn && btn.classList.remove('playing');
+    }
+  }, 500);
+}
+
+// ─── 更新信息面板 ───
+function updateInfoPanel(ipa) {
+  const p = IPA[ipa];
+  if (!p) return;
+  
+  document.getElementById('curSymbol').textContent = ipa;
+  document.getElementById('curName').textContent = p.name;
+  document.getElementById('curDesc').textContent = p.desc;
+  
+  const params = document.getElementById('acousticParams');
+  params.innerHTML = '';
+  
+  const rows = [];
+  rows.push(['类型', p.type]);
+  
+  if (p.type === 'vowel') {
+    rows.push(['F1', p.f1 + ' Hz']);
+    rows.push(['F2', p.f2 + ' Hz']);
+    rows.push(['F3', p.f3 + ' Hz']);
+  } else if (p.type === 'stop') {
+    rows.push(['浊音', p.voiced ? '是' : '否']);
+    rows.push(['爆破频率', p.burstFreq + ' Hz']);
+    rows.push(['VOT', (p.vot * 1000).toFixed(0) + ' ms']);
+  } else if (p.type === 'fric') {
+    rows.push(['浊音', p.voiced ? '是' : '否']);
+    rows.push(['噪声中心', p.center + ' Hz']);
+    rows.push(['谱倾斜', p.tilt + ' dB']);
+  } else if (p.type === 'nasal') {
+    rows.push(['鼻共振', p.nasalPole + ' Hz']);
+    rows.push(['反共振零点', p.nasalZero + ' Hz']);
+  } else if (p.type === 'glide' || p.type === 'liquid' || p.type === 'trill' || p.type === 'tap') {
+    rows.push(['F1', p.f1 + ' Hz']);
+    rows.push(['F2', p.f2 + ' Hz']);
+    rows.push(['F3', p.f3 + ' Hz']);
+    if (p.zero) rows.push(['反共振零点', p.zero + ' Hz']);
+  }
+  
+  rows.forEach(([k, v]) => {
+    const row = document.createElement('div');
+    row.className = 'param-row';
+    row.innerHTML = `<span>${k}</span><span class="val">${v}</span>`;
+    params.appendChild(row);
+  });
+  
+  // 发声过程
+  const processList = document.getElementById('processList');
+  processList.innerHTML = '';
+  const steps = getProcessSteps(p);
+  steps.forEach((s, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="step">${String(i+1).padStart(2,'0')}</span><span>${s}</span>`;
+    processList.appendChild(li);
+  });
+}
+
+function getProcessSteps(p) {
+  switch (p.type) {
+    case 'vowel':
+      return [
+        '肺部气流推动声带周期性开合，产生准周期脉冲源',
+        `声带振动基频 F0 ≈ ${p.f0 || 120}Hz，声门谱以 -12dB/oct 衰减`,
+        `声道形状形成共振峰：F1=${p.f1}Hz（舌位高低）、F2=${p.f2}Hz（舌位前后）、F3=${p.f3}Hz`,
+        '声门脉冲经过声道传递函数的滤波，共振峰频率处被增强',
+        '唇辐射：口腔开口处声压被提升约 +6dB/oct',
+        '输出：准周期波，频谱在共振峰处出现峰值'
+      ];
+    case 'stop':
+      return [
+        p.voiced ? '声带持续振动，但口腔完全闭塞，气流被阻挡' : '口腔完全闭塞，气流完全阻断，此阶段为静音',
+        `闭塞期 ${p.closure*1000}ms：气压在闭塞点后方积累`,
+        `爆破瞬间：闭塞释放，气流高速冲出，产生 ${p.burstDur*1000}ms 的短脉冲`,
+        `爆破脉冲频谱重心在 ${p.burstFreq}Hz（取决于发音部位）`,
+        `VOT ${p.vot*1000}ms：从爆破到声带开始振动的时间`,
+        '共振峰过渡：从塞音loci频率过渡到后续元音目标频率'
+      ];
+    case 'fric':
+      return [
+        p.voiced ? '声带振动产生低频激励 + 噪声源' : '声带不振动，只有噪声源',
+        `气流在狭窄处（${p.name.split('音')[0]}）产生湍流，形成宽带白噪声`,
+        `噪声经带通滤波，谱重心在 ${p.center}Hz，带宽 ${p.bw}Hz`,
+        `谱倾斜 ${p.tilt}dB：高频能量分布特征`,
+        '振幅包络：渐入-持续-渐出',
+        '输出：持续摩擦噪声，频谱形状反映发音部位'
+      ];
+    case 'nasal':
+      return [
+        '声带振动产生准周期脉冲源',
+        '软腭下降，打开鼻腔通道',
+        `口腔在发音部位闭合，形成死腔`,
+        `鼻腔主共振约 ${p.nasalPole}Hz（鼻腔形状决定的低频极点）`,
+        `口腔死腔产生反共振零点在 ${p.nasalZero}Hz（凹陷）`,
+        '低频能量通过鼻腔辐射，高频被抑制'
+      ];
+    case 'glide':
+      return [
+        '声带振动产生准周期脉冲源',
+        `声道形状接近元音但更短促：F1=${p.f1}、F2=${p.f2}、F3=${p.f3}`,
+        '共振峰轨迹从loci起始值过渡到目标',
+        '与后续元音形成平滑共振峰过渡',
+        '输出：短暂的类元音，具有过渡性质'
+      ];
+    case 'liquid':
+      return [
+        '声带振动产生准周期脉冲源',
+        `口腔中部闭塞，舌侧开放形成旁路通道`,
+        `共振峰：F1=${p.f1}、F2=${p.f2}、F3=${p.f3}`,
+        `舌侧通道产生反共振零点在 ${p.zero}Hz（边音特征）`,
+        '输出：类元音但有谱凹陷，音色独特'
+      ];
+    case 'trill':
+      return [
+        '声带振动产生准周期脉冲源',
+        `气流使发声器官（如舌尖）周期性拍打，频率约 ${p.tapRate}Hz`,
+        '每次拍打造成短暂的气流阻断和振幅下降',
+        `共振峰：F1=${p.f1}、F2=${p.f2}、F3=${p.f3}`,
+        '输出：带有周期性振幅调制的浊音'
+      ];
+    case 'tap':
+      return [
+        '声带振动产生准周期脉冲源',
+        `舌尖单次轻拍齿龈，时长仅 ${p.dur*1000}ms`,
+        `共振峰：F1=${p.f1}、F2=${p.f2}、F3=${p.f3}`,
+        '振幅极快上升后衰减',
+        '输出：极短的浊音脉冲'
+      ];
+    case 'affricate':
+      return [
+        p.voiced ? '声带振动 + 口腔闭塞' : '口腔完全闭塞',
+        `闭塞期 ${p.closure*1000}ms，气压积累`,
+        '爆破瞬间释放，产生短脉冲',
+        `缓慢释放为持续擦音段，频谱重心 ${p.center}Hz`,
+        '输出：先塞后擦的连续过程'
+      ];
+    default:
+      return ['未知音素类型'];
+  }
+}
+
+// ─── 播放序列 ───
+let sequencePlaying = false;
+
+async function playSequence() {
+  const input = document.getElementById('sequenceInput').value;
+  const phonemes = parseIPASequence(input);
+  
+  if (phonemes.length === 0) {
+    document.getElementById('statusText').textContent = '未识别到有效音素';
+    return;
+  }
+  
+  document.getElementById('phonemeCount').textContent = `${phonemes.length} 个音素`;
+  document.getElementById('statusText').textContent = '合成中...';
+  
+  if (synth.ctx.state === 'suspended') synth.ctx.resume();
+  
+  sequencePlaying = true;
+  synth.stopAll();
+  
+  let t = synth.now() + 0.05;
+  
+  for (let i = 0; i < phonemes.length; i++) {
+    if (!sequencePlaying) break;
+    
+    const ipa = phonemes[i];
+    const nextIpa = phonemes[i + 1];
+    
+    // 高亮当前播放
+    updateInfoPanel(ipa);
+    document.getElementById('statusText').textContent = `播放：${ipa} (${i+1}/${phonemes.length})`;
+    
+    t = synth.synth(ipa, t, nextIpa);
+    
+    // 等待下一音素
+    const wait = Math.max(50, (t - synth.now()) * 1000 - 30);
+    await new Promise(r => setTimeout(r, wait));
+  }
+  
+  sequencePlaying = false;
+  document.getElementById('statusText').textContent = '播放完成';
+  setTimeout(() => {
+    if (!sequencePlaying) document.getElementById('statusText').textContent = '就绪';
+  }, 2000);
+}
+
+// ─── 可视化 ───
+const canvas = document.getElementById('vizCanvas');
+const ctx = canvas.getContext('2d');
+let vizMode = 'spectrum';
+
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * window.devicePixelRatio;
+  canvas.height = rect.height * window.devicePixelRatio;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function drawViz() {
+  const W = canvas.width;
+  const H = canvas.height;
+  
+  if (vizMode === 'spectrum') {
+    const freqData = new Uint8Array(synth.analyser.frequencyBinCount);
+    synth.analyser.getByteFrequencyData(freqData);
+    
+    ctx.fillStyle = 'rgba(15, 20, 36, 0.4)';
+    ctx.fillRect(0, 0, W, H);
+    
+    // 网格
+    ctx.strokeStyle = 'rgba(42, 51, 88, 0.3)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const y = (H / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    
+    // 频谱
+    const barCount = 80;
+    const barWidth = W / barCount;
+    const samplesPerBar = Math.floor(freqData.length / barCount);
+    
+    for (let i = 0; i < barCount; i++) {
+      let sum = 0;
+      for (let j = 0; j < samplesPerBar; j++) {
+        sum += freqData[i * samplesPerBar + j];
+      }
+      const avg = sum / samplesPerBar / 255;
+      const barH = avg * H * 0.95;
+      
+      const grad = ctx.createLinearGradient(0, H - barH, 0, H);
+      grad.addColorStop(0, '#64ffda');
+      grad.addColorStop(0.5, '#7c4dff');
+      grad.addColorStop(1, '#ff6b9d');
+      ctx.fillStyle = grad;
+      ctx.fillRect(i * barWidth + 1, H - barH, barWidth - 2, barH);
+    }
+    
+    // 频率标注
+    ctx.fillStyle = 'rgba(136, 146, 176, 0.5)';
+    ctx.font = `${10 * window.devicePixelRatio}px JetBrains Mono`;
+    ['1k', '2k', '4k', '8k'].forEach((label, i) => {
+      const x = (i + 1) / 4 * W * 0.5;
+      ctx.fillText(label, x, H - 4);
+    });
+    
+  } else if (vizMode === 'waveform') {
+    const timeData = new Uint8Array(synth.analyser.fftSize);
+    synth.analyser.getByteTimeDomainData(timeData);
+    
+    ctx.fillStyle = 'rgba(15, 20, 36, 0.4)';
+    ctx.fillRect(0, 0, W, H);
+    
+    ctx.strokeStyle = '#64ffda';
+    ctx.lineWidth = 2 * window.devicePixelRatio;
+    ctx.beginPath();
+    const sliceW = W / timeData.length;
+    for (let i = 0; i < timeData.length; i++) {
+      const v = timeData[i] / 128 - 1;
+      const y = H / 2 + v * H / 2 * 0.9;
+      if (i === 0) ctx.moveTo(0, y);
+      else ctx.lineTo(i * sliceW, y);
+    }
+    ctx.stroke();
+    
+    // 中线
+    ctx.strokeStyle = 'rgba(42, 51, 88, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, H/2);
+    ctx.lineTo(W, H/2);
+    ctx.stroke();
+    
+  } else if (vizMode === 'spectrogram') {
+    // 简化版语谱图：滚动显示
+    const freqData = new Uint8Array(synth.analyser.frequencyBinCount);
+    synth.analyser.getByteFrequencyData(freqData);
+    
+    // 向左滚动
+    const imageData = ctx.getImageData(1, 0, W - 1, H);
+    ctx.putImageData(imageData, 0, 0);
+    
+    // 在右侧绘制新列
+    const newCol = W - 1;
+    for (let y = 0; y < H; y++) {
+      const freqIdx = Math.floor((H - y) / H * freqData.length * 0.5);
+      const val = freqData[freqIdx] / 255;
+      
+      // 颜色映射
+      const r = Math.floor(val * 255);
+      const g = Math.floor(val * 255 * 0.7);
+      const b = Math.floor(val * 255 * 0.9);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(newCol, y, 1, 1);
+    }
+  }
+  
+  requestAnimationFrame(drawViz);
+}
+drawViz();
+
+// ─── 事件绑定 ───
+document.querySelectorAll('.viz-tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.viz-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    vizMode = tab.dataset.viz;
+    ctx.fillStyle = 'rgba(15, 20, 36, 1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+});
+
+document.getElementById('playBtn').onclick = playSequence;
+
+document.getElementById('stopBtn').onclick = () => {
+  sequencePlaying = false;
+  synth.stopAll();
+  document.getElementById('statusText').textContent = '已停止';
+};
+
+document.getElementById('clearBtn').onclick = () => {
+  document.getElementById('sequenceInput').value = '';
+  document.getElementById('phonemeCount').textContent = '0 个音素';
+};
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.getElementById('sequenceInput').value = btn.dataset.seq;
+    playSequence();
+  };
+});
+
+document.getElementById('rateSlider').oninput = (e) => {
+  synth.rate = parseFloat(e.target.value);
+  document.getElementById('rateVal').textContent = synth.rate.toFixed(2) + '×';
+};
+
+document.getElementById('f0Slider').oninput = (e) => {
+  synth.f0Offset = parseInt(e.target.value) - 120;
+  document.getElementById('f0Val').textContent = e.target.value + 'Hz';
+};
+
+document.getElementById('sequenceInput').oninput = (e) => {
+  const phonemes = parseIPASequence(e.target.value);
+  document.getElementById('phonemeCount').textContent = `${phonemes.length} 个音素`;
+};
+
+// 初始化
+buildVowelChart();
+buildConsonantTable();
+
+// 初始音素计数
+document.getElementById('sequenceInput').dispatchEvent(new Event('input'));
+</script>
+
+</body>
+</html>

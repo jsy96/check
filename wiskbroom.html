@@ -124,7 +124,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
         <p><b>扫描镜 2:1</b>：45° 扫描镜转 1°，视线摆 2°。视线角速度 = 2×镜转速，帧间视线角 <code>Δθ = 2·ω镜·t_f</code>。</p>
         <p><b>总摆扫角</b>：<code>Θ = N_f × Δθ</code>。</p>
         <p><b>时序</b>：单程摆扫时长 <code>T单程 = N_f·t_f</code>；摆扫周期 T（两次相邻摆扫开始时刻之差）在沿迹组"卫星飞行时长"输入，留空则按连续摆扫 <code>T = T单程</code> 推导。</p>
-        <p><b>漏扫判据（核心）</b>：① 帧间：<code>s &gt; D⊥</code> → 帧间漏扫；② 条带：<code>v_g·T &gt; D∥</code> → 相邻两摆扫行程之间沿迹方向漏缝；③ <code>T &lt; T单程</code> → 摆扫未结束即开始下一程；④ 摆扫边缘按球面几何复核帧间步进与瞬时覆盖。</p>
+        <p><b>漏扫判据（核心）</b>：① 帧间：<code>s &gt; D⊥</code> → 帧间漏扫；② 条带：<code>v_g·T &gt; D∥</code> → 相邻两摆扫行程之间沿迹方向漏缝；③ <code>T &lt; T单程</code> → 摆扫未结束即开始下一程；④ 每次摆扫距离：<code>v·T &gt; D∥</code>（v 为卫星轨道速度）→ 相邻摆扫间沿迹漏缝（较 ② 的地速口径更保守）。</p>
         <p><b>球面换算（视线角 θ → 地心角 φ）</b>：斜距 <code>t = a·cosθ − √(R² − a²·sin²θ)</code>，地心角 <code>φ = atan2(t·sinθ, a − t·cosθ)</code>；幅宽 <code>SW = R·φ总</code>（星下点居中：<code>φ总 = 2·φ(Θ/2)</code>；从星下点开始：<code>φ总 = φ(Θ)</code>）。视线角超过地平线角 <code>θh = arcsin(R/a)</code> 时视线不与地球相交。</p>
         <p><b>速度</b>：轨道速度 <code>v = √(μ/a)</code>；星下点地速 <code>v_g = v·R/a</code>。漏扫与推进计算使用 v_g。</p>
         <p><b>容差</b>：恒等式两侧相对偏差超过容差判为矛盾（红色）；物理约束为不等式，违反即红色报警；黄色为提示性信息（如摆扫周期大于单程时长，存在空闲/回扫时间）。</p>
@@ -140,7 +140,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：参数定义、求解、校验（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260820-5';
+const VERSION = 'v1.0.260826-1';
 
 const UNIT_TYPES = {
   dist:  {units:[['km',1e3],['m',1],['cm',1e-2],['mm',1e-3],['μm',1e-6]]},
@@ -365,20 +365,16 @@ function buildConstraints(val, mode){
       C.push({name:'总摆扫角在地平线内',status:'bad',
         detail:`摆扫边缘视线角 ${fmtSI(edge,'ang')} > 地平线角 ${fmtSI(thH,'ang')}：视线扫出地球，无法成像`});
   }
-  // ⑤ 摆扫边缘帧间漏扫（球面几何，粗算的精细化复核）
-  if (has('Theta','dtheta','R','a','W_det','f')){
-    const thE = mode==='center' ? x.Theta/2 : x.Theta;
-    const sE = x.R*(geoPhi(thE,x.R,x.a) - geoPhi(thE - x.dtheta,x.R,x.a));
-    const w = x.W_det/x.f;
-    const DcE = x.R*(geoPhi(thE+w/2,x.R,x.a) - geoPhi(thE-w/2,x.R,x.a));
-    if (isFinite(sE) && isFinite(DcE)){
-      if (sE <= DcE)
-        C.push({name:'摆扫边缘帧间不漏扫（球面）',status:'ok',
-          detail:`边缘步进 ${fmtSI(sE,'dist')} ≤ 边缘瞬时覆盖 ${fmtSI(DcE,'dist')}，边缘重叠率 ${pct(1-sE/DcE)}`});
-      else
-        C.push({name:'摆扫边缘帧间不漏扫（球面）',status:'bad',
-          detail:`摆扫边缘漏扫：边缘步进 ${fmtSI(sE,'dist')} > 边缘瞬时覆盖 ${fmtSI(DcE,'dist')}（斜距增大导致覆盖被拉稀）`});
-    }
+  // ⑤ 每次摆扫距离不漏扫（老金口径）：摆扫周期 T × 卫星速度 ≤ 沿迹地面覆盖 D∥
+  if (has('v_sat','t_fly','D_along')){
+    const d = x.v_sat * x.t_fly, D = x.D_along;
+    const derived = /连续/.test(val.t_fly.source || '');
+    if (d <= D)
+      C.push({name:'每次摆扫距离不漏扫（T·v ≤ D∥）',status:'ok',
+        detail:`每次摆扫距离 ${fmtSI(d,'dist')}（T×卫星速度）≤ 沿迹地面覆盖 ${fmtSI(D,'dist')}，重叠率 ${pct(1-d/D)}${derived?'（T 为推导值）':''}`});
+    else
+      C.push({name:'每次摆扫距离不漏扫（T·v ≤ D∥）',status:'bad',
+        detail:`相邻摆扫漏缝：每次摆扫距离 ${fmtSI(d,'dist')}（T×卫星速度）> 沿迹地面覆盖 ${fmtSI(D,'dist')}，漏缝 ${fmtSI(d-D,'dist')}（占覆盖 ${pct((d-D)/D)}）`});
   }
   return C;
 }

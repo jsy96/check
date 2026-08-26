@@ -125,6 +125,17 @@ console.log('Case G：参数 TXT 序列化 → 解析 往返一致');
   assert(r4.inputs.H === 500e3 && r4.warnings.length === 0, '带 BOM 文件头正确剥离');
 }
 
+console.log('Case H：摆扫周期 7s → 每次摆扫距离（T×卫星速度）> 沿迹覆盖 → 报警，地速口径仍通过');
+{
+  const val = core.solve({...base, t_fly:7}, 'start');
+  const con = core.buildConstraints(val, 'start');
+  const hit = con.find(c=>c.name.includes('每次摆扫距离') && c.status==='bad');
+  console.log('    ' + (hit ? hit.detail : '（未触发）'));
+  assert(!!hit, '每次摆扫距离不漏扫约束触发为 bad（v·T = 7616.9×7 ≈ 53.3 km > 51.2 km）');
+  const strip = con.find(c=>c.name.includes('条带间不漏扫'));
+  assert(!!strip && strip.status==='ok', '同期地速口径 v_g·T = 7062×7 ≈ 49.4 km ≤ 51.2 km 仍为 ok');
+}
+
 fs.unlinkSync(corePath);
 console.log(failed === 0 ? '\n全部通过' : '\n有 ' + failed + ' 项失败');
 process.exit(failed === 0 ? 0 : 1);
