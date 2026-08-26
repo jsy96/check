@@ -107,6 +107,8 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
   font-variant-numeric:tabular-nums}
 #focalEmpty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:var(--mut);font-size:13px}
+.focaldir{position:absolute;top:8px;left:10px;font-size:11.5px;color:var(--mut);z-index:2;
+  background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px;pointer-events:none}
 @media(max-width:1000px){#focalWrap{height:420px}}
 </style>
 </head>
@@ -136,7 +138,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 
     <div class="card">
       <h2>CCD 原点（焦面坐标）</h2>
-      <div class="sub">面阵由 N 片 CCD 在焦面上二维拼接；每片原点 (x₀, y₀) 自文本文件读取，N = 原点行数（即 sensorCount）</div>
+      <div class="sub">面阵由 N 片 CCD 在焦面上二维拼接；每片原点 (x₀, y₀) 为<b>相机焦平面坐标</b>（原点在光轴中心：x 沿飞行方向、y 垂轨向左为正），自文本文件读取，N = 原点行数（即 sensorCount）</div>
       <div class="prow"><div class="plabel">原点文本（可读取文件或直接粘贴编辑）</div>
         <div class="pctl" style="flex-direction:column;align-items:stretch;gap:0">
           <textarea id="inOrigins" spellcheck="false"
@@ -160,13 +162,13 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
       <div class="prow"><div class="plabel">波段数 bandCount B</div>
         <div class="pctl"><input id="in_B" type="number" step="1" min="1" value="1"></div>
         <div class="pnote">各波段共用同一组 CCD 原点（gf4b-VIS 实例为 1）</div><div class="derived"></div></div>
-      <div class="prow"><div class="plabel">每片探元数 width W</div>
-        <div class="pctl"><input id="in_W" type="number" step="1" min="1" value="2048"></div>
-        <div class="pnote">x 方向（lookAngleX 自变量）探元个数，文件中的 width</div>
+      <div class="prow"><div class="plabel">每片探元数 width W（列数）</div>
+        <div class="pctl"><input id="in_W" type="number" step="1" min="1" value="5120"></div>
+        <div class="pnote">width 列数（向右），lookAngleY 自变量（系数 −p/f）；文件中的 width</div>
         <div class="derived" id="dv_W"></div></div>
-      <div class="prow"><div class="plabel">每片探元数 height H</div>
-        <div class="pctl"><input id="in_H" type="number" step="1" min="1" value="5120"></div>
-        <div class="pnote">y 方向（lookAngleY 自变量）探元个数，文件中的 height；线阵文件无此行</div>
+      <div class="prow"><div class="plabel">每片探元数 height H（行数）</div>
+        <div class="pctl"><input id="in_H" type="number" step="1" min="1" value="2048"></div>
+        <div class="pnote">height 行数（向下），lookAngleX 自变量（系数 +p/f）；文件中的 height；线阵文件无此行</div>
         <div class="derived" id="dv_H"></div></div>
       <div class="prow"><div class="plabel">文件块顺序</div>
         <div class="pctl"><select id="orderSel" class="wide">
@@ -218,7 +220,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
       <div class="sub">恒等式偏差超容差或约束违反即报红</div>
       <div id="lstChk"></div></div>
     <div class="card"><h2>焦面布置示意</h2>
-      <div class="sub">垂直轴 x（width 方向，lookAngleX）<b>向下为正</b>、水平轴 y（height 方向，lookAngleY）<b>向左为正</b>；各片探元 (0,0) 在该片<b>右上角</b>（width 序号向下增大、height 序号向左增大；数据/图像口径为 width 向右、height 向下，与焦面视图相差 90°）；两轴均为真实比例；虚线框为虚拟整帧外接框；悬停可看数值；<b>滚轮缩放（以光标为中心）、拖动平移</b>，右上角 ＋ / − / 适配，文字大小不随缩放变化</div>
+      <div class="sub"><b>相机焦平面坐标</b>（原点在光轴中心）：垂直轴 x 沿飞行方向<b>向下为正</b>（lookAngleX = x/f）、水平轴 y 垂轨方向<b>向左为正</b>（lookAngleY = y/f）；<b>像素坐标</b>原点在图像左上角（width 列号向右、height 行号向下），映射：行号增大 → tanX 增大（向下）、列号增大 → tanY 减小（向左），各片探元 (0,0) 在该片<b>左上角</b>（片横跨 = 垂轨 W·p、竖跨 = 沿轨 H·p，图像视图与焦面视图方向一致）；两轴真实比例；虚线框为虚拟整帧外接框；悬停可看数值；<b>滚轮缩放（以光标为中心）、拖动平移</b>，右上角 ＋ / − / 适配，文字大小不随缩放变化</div>
       <div id="focalWrap">
         <div class="zoombar">
           <button id="fzIn" type="button" title="放大">＋</button>
@@ -226,6 +228,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
           <button id="fzFit" type="button" title="重置视图">适配</button>
           <span class="pct" id="fzPct">100%</span>
         </div>
+        <div class="focaldir">↓ x 沿飞行方向（lookAngleX）｜← y 垂轨（lookAngleY）</div>
         <svg id="focalSvg"></svg>
         <div id="focalEmpty">参数不足，暂无示意图</div>
       </div>
@@ -241,11 +244,11 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
       <summary>格式与口径说明（点击展开）</summary>
       <div class="formula-note">
         <p><b>与线阵（pushbroom）文件的差异</b>：首行多 <code>Type=Frame</code>；多项式头为 <code>CamPoly=3</code>（线阵是 <code>nCamPoly=n</code> 一元 n 次）；每块多一行 <code>height=</code>；lookAngle 为<b>二元 3 次多项式（10 项）</b>，项序 <code>1, x, y, x², xy, y², x³, x²y, xy², y³</code>；系数 %.18e 以<b>两个空格</b>分隔（taijing 线阵实例为单空格）；<code>angleBiasR</code> 为 %.18f 定点、3×3 行组间两空格（gf4b-VIS 实例口径；实例中 [0][2] 为 −0 是标定数据噪声，本工具生成 +0）。</p>
-        <p><b>探元块</b>：共 <code>1 + N×B</code> 块，每块四行 <code>width= 探元数</code>、<code>height= 探元数</code>、<code>lookAngleX: c₀ … c₉</code>、<code>lookAngleY: c₀ … c₉</code>。自变量为 0 基探元序号 x = 0…W−1（width 方向）、y = 0…H−1（height 方向）；多项式取值 (tanX, tanY) 使 <code>(tanX, tanY, 1)</code> 为相机坐标系探元视线矢量。<b>方向口径</b>：探元序号 x/width <b>向右为正</b>、y/height <b>向下为正</b>（数据/图像口径）；对应视线方向 lookAngleX <b>向下为正</b>、lookAngleY <b>向左为正</b>（焦面示意口径）——两口径相差 90°，由正斜率 c₁ = c₂ = p/f 关联（width 序号增大 → tanX 增大 → 焦面图中向下；height 序号增大 → tanY 增大 → 向左）。</p>
-        <p><b>几何模型</b>（已用 gf4b-VIS.coef 实例数值验证）：理想模型下第 i 片 <code>lookAngleX</code> 系数 c₀ = x₀ᵢ/f（原点切角）、c₁ = p/f，其余 0；<code>lookAngleY</code> 系数 c₀ = y₀ᵢ/f、c₂ = p/f，其余 0（gf4b 实例实测：各片 c₁/c₂ 均为 5.517241379310344e-07、相互偏差 &lt; 1e-21，高次项为 e-2x 量级标定噪声，理想生成输出精确 0）。</p>
-        <p><b>虚拟整帧（第 0 块）</b>：全焦面外接框——width = ⌈(max x₀ − min x₀)/p⌉ + W，height 同理；lookAngleX c₀ = min x₀/f、lookAngleY c₀ = min y₀/f（gf4b 实例：虚拟块两轴 c₀ 与各片最小 c₀ 严格相等；其实例尺寸 22504 = 2×12288−2072、22438 = 2×12288−2138，为 2×2 拼接设计搭接约 2072×2138 像元，实测片位姿偏差使外接框（约 22539×22456）比设计格网大一二十至三十五像元，属正常）。</p>
-        <p><b>原点文件</b>：kjg.txt 格式——首行 <code>ccd&#9;x&#9;y</code> 表头（可省略），随后每行 <code>片号 x y</code>，TAB/空格/逗号/分号分隔；# 与 // 为注释；缺片号列按行序自动编号；片顺序即文件行序，sensorCount = 行数。</p>
-        <p><b>搭接 / 间隙</b>：单片物理 footprint = W·p × H·p；两片 |Δx₀| &lt; W·p 且 |Δy₀| &lt; H·p 即存在 2D 搭接（拼接设计常态，如 gf4b 设计搭接约 2072×2138 像元）；x、y 各向做投影区间并集检查，存在间隙即提示（投影全覆盖不排除棋盘形 2D 空洞）。</p>
+        <p><b>探元块</b>：共 <code>1 + N×B</code> 块，每块四行 <code>width= 列数</code>、<code>height= 行数</code>、<code>lookAngleX: c₀ … c₉</code>、<code>lookAngleY: c₀ … c₉</code>。自变量为 0 基<b>像素坐标</b>：x = width 列号 0…W−1、y = height 行号 0…H−1；多项式取值 (tanX, tanY) 使 <code>(tanX, tanY, 1)</code> 为相机坐标系探元视线矢量。<b>方向口径</b>：<b>相机焦平面坐标</b>——原点在焦面光轴中心，x 沿飞行方向<b>向下为正</b>、y 垂轨方向<b>向左为正</b>，lookAngleX = x/f、lookAngleY = y/f（即 tanX 向下为正、tanY 向左为正），CCD 原点文件（kjg.txt）的 x/y 即该坐标；<b>图像传感器像素坐标</b>——原点在图像左上角，width 为列号<b>向右为正</b>、height 为行号<b>向下为正</b>。映射（lookAngleX 的 c₂ = +p/f 为行号项、lookAngleY 的 c₁ = −p/f 为列号项）：<b>行号增大 → tanX 增大</b>（行号与 tanX 同向下）；<b>列号增大 → tanY 减小</b>（列号向右、tanY 向左为正），故每片探元 (0,0) 位于该片焦面<b>左上角</b>，图像视图（列右/行下）与焦面视图方向一致。</p>
+        <p><b>几何模型</b>（定稿口径）：理想模型下第 i 片 <code>lookAngleX</code>：c₀ = x₀ᵢ/f（焦面原点切角）、<b>c₂ = +p/f（height 行号项，行号增大 → tanX 增大）</b>，其余 0；<code>lookAngleY</code>：c₀ = y₀ᵢ/f、<b>c₁ = −p/f（width 列号项，列号增大 → tanY 减小）</b>，其余 0；tanX = x₀ᵢ/f + (p/f)·行号、tanY = y₀ᵢ/f − (p/f)·列号。（gf4b-VIS.coef 实例的线性项位于 c₁(X)/c₂(Y) 且均为 +5.517241379310344e-07、高次项为 e-2x 标定噪声——该槽位/符号系实例相机自身口径，与本工具设计口径不同；两者文件语法一致。）</p>
+        <p><b>虚拟整帧（第 0 块）</b>：全焦面外接框——width = ⌈(max y₀ − min y₀)/p⌉ + W（垂轨、列向），height = ⌈(max x₀ − min x₀)/p⌉ + H（沿轨、行向）；lookAngleX c₀ = min x₀/f（行 0 = 帧顶）、lookAngleY c₀ = <b>max</b> y₀/f（列 0 = 帧左缘，tanY 左正故取最大）、一次项 −p/f。2×2 拼接设计搭接 ovl 时 width = 2W−ovl（gf4b 实例尺寸 22504 = 2×12288−2072、22438 = 2×12288−2138，实测位姿偏差使外接框比设计格网大一二十至三十五像元，属正常）。</p>
+        <p><b>原点文件</b>：kjg.txt 格式——首行 <code>ccd&#9;x&#9;y</code> 表头（可省略），随后每行 <code>片号 x y</code>，TAB/空格/逗号/分号分隔；# 与 // 为注释；缺片号列按行序自动编号；片顺序即文件行序，sensorCount = 行数；x/y 为<b>相机焦平面坐标</b>（原点在光轴中心，x 沿飞行方向、y 垂轨向左为正）。</p>
+        <p><b>搭接 / 间隙</b>：单片物理 footprint = 沿轨 H·p × 垂轨 W·p；两片 |Δx₀| &lt; H·p 且 |Δy₀| &lt; W·p 即存在 2D 搭接（拼接设计常态，如 gf4b 设计搭接约 2138×2072 像元）；沿轨/垂轨各向做投影区间并集检查，存在间隙即提示（投影全覆盖不排除棋盘形 2D 空洞）。</p>
         <p><b>GSD / 幅宽 / 视场</b>：星下点平面近似 <code>GSD = p·H/f</code>；幅宽 × 幅高 = 虚拟整帧 Vw×Vh × GSD；X/Y 向全视场角 = atan(tan 末探元) − atan(tan 首探元)，对角视场角 = 两对角角点视线矢量夹角；边缘离轴角 = atan(√(tanX²+tanY²)) 取最远角点，超过地平线角 arcsin(R/(R+H)) 报警。</p>
         <p><b>字节格式</b>：ASCII、CRLF 换行、无 BOM、末尾单个换行；系数 C 风格 <code>%.18e</code>（指数至少两位，如 <code>1.2e-2 → e-02</code>）双空格分隔；angleBias 三行 <code>%.18f</code> 定点；<code>width=</code> / <code>height=</code> 后各有一个空格，<code>lookAngleX:</code> 后有一个空格。</p>
       </div>
@@ -260,7 +263,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：原点解析、几何模型、系数生成、校验、TXT 读写（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260826-4';
+const VERSION = 'v1.0.260826-6';
 const DEG = Math.PI / 180;
 const CAM_POLY = 3;                       // 二元 3 次：10 项
 const N_TERMS = (CAM_POLY + 1) * (CAM_POLY + 2) / 2;   // = 10
@@ -349,8 +352,13 @@ function parseOriginText(text, unitFactor){
 
 /* ---- 几何与系数块生成 ----
    cfg = {B, W, H, slope(p/f), f, order:'chip'|'band', chips:[{id,x0,y0(SI)}]}
-   理想模型：tanX(x,y) = x0/f + s·x，tanY(x,y) = y0/f + s·y（s = p/f）
-   系数序（二元 3 次 10 项）：1, x, y, x², xy, y², x³, x²y, xy², y³ */
+   坐标口径（定稿）：
+   - 相机焦平面坐标：原点在光轴中心，x 沿飞行方向（沿轨）向下为正、y 垂轨向左为正
+   - 像素坐标：原点在图像左上角，x = width 列号 0…W−1（向右正）、y = height 行号 0…H−1（向下正）
+   - 映射：行号增大 → tanX 增大（行号与 tanX 同向下）；列号增大 → tanY 减小（列向右、tanY 左正）
+     ⇒ tanX = x0/f + s·行号，tanY = y0/f − s·列号（s = p/f）；探元 (0,0) 在该片焦面左上角
+   系数序（二元 3 次 10 项）：1, x(列号), y(行号), x², xy, y², x³, x²y, xy², y³
+   ⇒ lookAngleX：c0 = x0/f、c2 = +s（行号项）；lookAngleY：c0 = y0/f、c1 = −s（列号项），其余 0 */
 function buildGeometry(cfg){
   const err = [];
   const B = cfg.B, W = cfg.W, H = cfg.H;
@@ -366,7 +374,8 @@ function buildGeometry(cfg){
 
   const s = cfg.slope, f = cfg.f, p = s * f;
   const N = chips.length;
-  const Wp = W * p, Hp = H * p;                       // 单片物理 footprint（含全像元阵列）
+  const Wp = W * p;                 // 单片垂轨向（列方向）物理宽
+  const Hp = H * p;                 // 单片沿轨向（行方向）物理高
 
   const pad0 = () => new Array(N_TERMS).fill(0);
   const physical = [];
@@ -377,45 +386,47 @@ function buildGeometry(cfg){
   const blocks = physical.map(({i, b}) => {
     const c = chips[i - 1];
     const cx = pad0(), cy = pad0();
-    cx[0] = c.x0 / f; cx[1] = s;                       // c0 = x0/f，x 一次项 = p/f
-    cy[0] = c.y0 / f; cy[2] = s;                       // c0 = y0/f，y 一次项 = p/f
+    cx[0] = c.x0 / f; cx[2] = s;                       // tanX = x0/f + s·行号
+    cy[0] = c.y0 / f; cy[1] = -s;                      // tanY = y0/f − s·列号
     return {kind: 'phys', width: W, height: H, i, b, x0: c.x0, y0: c.y0, cx, cy,
             label: `第${i}片·第${b}波段`};
   });
 
-  /* 虚拟整帧（第 0 块）：全焦面外接框；c0 = 各片原点最小值（gf4b-VIS.coef 实例口径）
-     width = ⌈(max x0 − min x0)/p + W⌉（ε 防浮点把整数跨大 1），height 同理 */
+  /* 虚拟整帧（第 0 块）：全焦面外接框。行 0 = 帧顶（tanX 最小 → c0X = min x0/f）；
+     列 0 = 帧左缘（tanY 左正 → 最大 → c0Y = max y0/f，一次项 −p/f）。
+     width = ⌈(max y0 − min y0)/p⌉ + W（垂轨、列向覆盖 [min y0 − Wp, max y0]），
+     height = ⌈(max x0 − min x0)/p⌉ + H（沿轨、行向覆盖 [min x0, max x0 + Hp]；ε 防浮点跨大 1） */
   const minX0 = Math.min.apply(null, chips.map(c => c.x0));
   const maxX0 = Math.max.apply(null, chips.map(c => c.x0));
   const minY0 = Math.min.apply(null, chips.map(c => c.y0));
   const maxY0 = Math.max.apply(null, chips.map(c => c.y0));
-  const Vw = Math.ceil((maxX0 - minX0) / p + W - 1e-6);
-  const Vh = Math.ceil((maxY0 - minY0) / p + H - 1e-6);
+  const Vw = Math.ceil((maxY0 - minY0) / p + W - 1e-6);
+  const Vh = Math.ceil((maxX0 - minX0) / p + H - 1e-6);
   const vcx = pad0(), vcy = pad0();
-  vcx[0] = minX0 / f; vcx[1] = s;
-  vcy[0] = minY0 / f; vcy[2] = s;
-  blocks.unshift({kind: 'virtual', width: Vw, height: Vh, i: 0, b: 0, x0: minX0, y0: minY0,
+  vcx[0] = minX0 / f; vcx[2] = s;
+  vcy[0] = maxY0 / f; vcy[1] = -s;
+  blocks.unshift({kind: 'virtual', width: Vw, height: Vh, i: 0, b: 0, x0: minX0, y0: maxY0,
                   cx: vcx, cy: vcy, label: '虚拟整帧（第0块，焦面外接框）'});
 
   /* 各片 tan 范围与最远角点 */
   const chipInfo = chips.map((c, k) => {
-    const tx0 = c.x0 / f, tx1 = (c.x0 + (W - 1) * p) / f;
-    const ty0 = c.y0 / f, ty1 = (c.y0 + (H - 1) * p) / f;
+    const tx0 = c.x0 / f, tx1 = (c.x0 + (H - 1) * p) / f;   // 行号 0 → H−1（tanX 增大）
+    const ty0 = c.y0 / f, ty1 = (c.y0 - (W - 1) * p) / f;   // 列号 0 → W−1（tanY 减小）
     let corner = 0;
     for (const tx of [tx0, tx1]) for (const ty of [ty0, ty1])
       corner = Math.max(corner, Math.hypot(tx, ty));
     return {id: c.id, x0: c.x0, y0: c.y0, tx0, tx1, ty0, ty1, corner};
   });
 
-  /* 片间 2D 搭接对（footprint 相交） */
+  /* 片间 2D 搭接对：沿轨 footprint H·p × 垂轨 footprint W·p 相交 */
   const overlapPairs = [];
   for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++){
     const dx = Math.abs(chips[i].x0 - chips[j].x0), dy = Math.abs(chips[i].y0 - chips[j].y0);
-    if (dx < Wp && dy < Hp)
-      overlapPairs.push({i: i + 1, j: j + 1, ox: W - dx / p, oy: H - dy / p});
+    if (dx < Hp && dy < Wp)
+      overlapPairs.push({i: i + 1, j: j + 1, ox: H - dx / p, oy: W - dy / p});  // ox 沿轨(行)、oy 垂轨(列)
   }
 
-  /* x / y 投影区间并集 → 覆盖间隙（SI m） */
+  /* 沿轨 / 垂轨投影区间并集 → 覆盖间隙（SI m）：x 向 [x0, x0+Hp]、y 向 [y0−Wp, y0] */
   const unionGaps = intervals => {
     const iv = intervals.slice().sort((a, b) => a[0] - b[0]);
     let total = 0, max = 0, cur = iv[0][0];
@@ -425,12 +436,12 @@ function buildGeometry(cfg){
     }
     return {total, max};
   };
-  const gapX = unionGaps(chips.map(c => [c.x0, c.x0 + Wp]));
-  const gapY = unionGaps(chips.map(c => [c.y0, c.y0 + Hp]));
+  const gapX = unionGaps(chips.map(c => [c.x0, c.x0 + Hp]));
+  const gapY = unionGaps(chips.map(c => [c.y0 - Wp, c.y0]));
 
   /* 视场 / 角点 / 中心偏移 */
-  const tanXR = [minX0 / f, (maxX0 + (W - 1) * p) / f];
-  const tanYR = [minY0 / f, (maxY0 + (H - 1) * p) / f];
+  const tanXR = [minX0 / f, (maxX0 + (H - 1) * p) / f];
+  const tanYR = [(minY0 - (W - 1) * p) / f, maxY0 / f];
   const fovX = Math.atan(tanXR[1]) - Math.atan(tanXR[0]);
   const fovY = Math.atan(tanYR[1]) - Math.atan(tanYR[0]);
   const nrm = (tx, ty) => Math.sqrt(tx * tx + ty * ty + 1);
@@ -440,9 +451,9 @@ function buildGeometry(cfg){
   for (const tx of tanXR) for (const ty of tanYR) cornerTan = Math.max(cornerTan, Math.hypot(tx, ty));
 
   return {errors: [], slope: s, p, f, N, W, H, Wp, Hp, Vw, Vh, blocks, chipInfo,
-          fp: {minX: minX0, maxX: maxX0 + Wp, minY: minY0, maxY: maxY0 + Hp},
+          fp: {minX: minX0, maxX: maxX0 + Hp, minY: minY0 - Wp, maxY: maxY0},
           tanXR, tanYR, fovX, fovY, fovDiag, cornerTan,
-          centerOff: {x: (minX0 + maxX0 + Wp) / 2, y: (minY0 + maxY0 + Hp) / 2},
+          centerOff: {x: (minX0 + maxX0 + Hp) / 2, y: (minY0 - Wp + maxY0) / 2},
           overlapPairs, gapX, gapY};
 }
 
@@ -513,7 +524,7 @@ function buildChecks(opt, geo, cfg){
       const gnd = (opt.GSD != null && isFinite(opt.GSD))
         ? `（地面 ${fmtM(mo.ox * opt.GSD)} × ${fmtM(mo.oy * opt.GSD)}）` : '';
       C.push({name: '片间 2D 搭接', status: 'ok',
-        detail: `${geo.overlapPairs.length} 对片 footprint 相交（拼接搭接），最大 x 向 ${fmtNum(mo.ox)} × y 向 ${fmtNum(mo.oy)} 像元${gnd}`});
+        detail: `${geo.overlapPairs.length} 对片 footprint 相交（拼接搭接，footprint = 沿轨 H·p × 垂轨 W·p），最大沿轨 ${fmtNum(mo.ox)} × 垂轨 ${fmtNum(mo.oy)} 像元${gnd}`});
     } else {
       C.push({name: '片间 2D 搭接', status: 'info', detail: '片间无任何 2D 搭接；若各片应拼接成整幅面阵，请检查原点与单片尺寸'});
     }
@@ -525,8 +536,8 @@ function buildChecks(opt, geo, cfg){
       C.push({name: '投影覆盖间隙', status: 'ok', detail: 'x、y 投影方向均无间隙（全覆盖；不排除棋盘形 2D 空洞）'});
     } else {
       const parts = [];
-      if (geo.gapX.total > 0) parts.push(`x 向合计 ${fmtNum(px(geo.gapX.total))} 像元 / ${fmtMm(geo.gapX.total)}（最大 ${fmtMm(geo.gapX.max)}）`);
-      if (geo.gapY.total > 0) parts.push(`y 向合计 ${fmtNum(px(geo.gapY.total))} 像元 / ${fmtMm(geo.gapY.total)}（最大 ${fmtMm(geo.gapY.max)}）`);
+      if (geo.gapX.total > 0) parts.push(`沿轨 x 向合计 ${fmtNum(px(geo.gapX.total))} 像元 / ${fmtMm(geo.gapX.total)}（最大 ${fmtMm(geo.gapX.max)}）`);
+      if (geo.gapY.total > 0) parts.push(`垂轨 y 向合计 ${fmtNum(px(geo.gapY.total))} 像元 / ${fmtMm(geo.gapY.total)}（最大 ${fmtMm(geo.gapY.max)}）`);
       C.push({name: '投影覆盖间隙', status: 'info', detail: '存在未覆盖间隙：' + parts.join('；')});
     }
   }
@@ -548,14 +559,14 @@ function buildDerived(opt, geo){
   const R = [];
   if (geo){
     R.push(['sensorCount N（= 原点行数）', geo.N + ' 片']);
-    R.push(['像元角步长 p/f（lookAngleX x 项 = lookAngleY y 项）', fmtUrad(geo.slope)]);
-    R.push(['单片探元 W×H', `${geo.W}×${geo.H} 像元`]);
-    R.push(['单片物理尺寸 W·p × H·p', `${fmtMm(geo.Wp)} × ${fmtMm(geo.Hp)}`]);
-    R.push(['虚拟整帧（第0块）= 外接框', `${geo.Vw}×${geo.Vh} 像元`]);
-    R.push(['焦面外接框', `${fmtMm(geo.fp.maxX - geo.fp.minX)} × ${fmtMm(geo.fp.maxY - geo.fp.minY)}`]);
-    R.push(['焦面中心相对主点偏移', `(${fmtMm(geo.centerOff.x)}, ${fmtMm(geo.centerOff.y)})`]);
-    R.push(['X 向全视场角（width 方向）', fmtDeg(geo.fovX)]);
-    R.push(['Y 向全视场角（height 方向）', fmtDeg(geo.fovY)]);
+    R.push(['像元角步长 p/f（lookAngleX 行号项 +p/f、lookAngleY 列号项 −p/f）', fmtUrad(geo.slope)]);
+    R.push(['单片探元 W×H（列×行）', `${geo.W}×${geo.H} 像元`]);
+    R.push(['单片物理尺寸（垂轨宽 W·p × 沿轨高 H·p）', `${fmtMm(geo.Wp)} × ${fmtMm(geo.Hp)}`]);
+    R.push(['虚拟整帧（第0块）= 外接框（列×行）', `${geo.Vw}×${geo.Vh} 像元`]);
+    R.push(['焦面外接框（沿轨 × 垂轨）', `${fmtMm(geo.fp.maxX - geo.fp.minX)} × ${fmtMm(geo.fp.maxY - geo.fp.minY)}`]);
+    R.push(['焦面中心相对主点偏移（x, y）', `(${fmtMm(geo.centerOff.x)}, ${fmtMm(geo.centerOff.y)})`]);
+    R.push(['X 向全视场角（沿轨，height 行方向）', fmtDeg(geo.fovX)]);
+    R.push(['Y 向全视场角（垂轨，width 列方向）', fmtDeg(geo.fovY)]);
     R.push(['对角视场角（两对角角点视线夹角）', fmtDeg(geo.fovDiag)]);
     R.push(['边缘离轴角（最远角点）', fmtDeg(Math.atan(geo.cornerTan))]);
     if (opt.GSD != null){
@@ -803,8 +814,9 @@ function renderOrigInfo(origin, geo){
     (origin.warnings.length ? `；${origin.warnings.length} 行忽略` : '');
 }
 
-/* ---------- 焦面布置示意（垂直轴 x/width/lookAngleX 向下为正、水平轴 y/height/lookAngleY 向左为正，
-   真实比例；数据/图像口径 width 向右、height 向下，与焦面视图相差 90°（由 lookAngle 正斜率关联）；
+/* ---------- 焦面布置示意（相机焦平面坐标：原点在光轴中心，x 沿飞行方向向下为正、y 垂轨向左为正）；
+   像素坐标（图像左上角原点，width 列号向右、height 行号向下）经正斜率 c1=c2=p/f 关联：
+   列号增大 → tanX 增大向下，行号增大 → tanY 增大向左，探元 (0,0) 在该片右上角；
    固定高度容器内滚轮缩放（以光标为中心）/ 拖动平移 / ＋−适配按钮，文字反向缩放恒定大小） ---------- */
 const PALETTE = ['#2059a8', '#c96a11', '#167a48', '#7a3fa0', '#b3261e', '#0e7490', '#8a6d00', '#546e7a'];
 const focalView = {z: 1, tx: 0, ty: 0};     // 用户视图状态（z 缩放、tx/ty 平移，单位 px）
@@ -840,14 +852,14 @@ function renderFocal(geo){
   h += `<g><line x1="${(px - 7 * inv).toFixed(2)}" y1="${py.toFixed(2)}" x2="${(px + 7 * inv).toFixed(2)}" y2="${py.toFixed(2)}" stroke="#b3261e" stroke-width="${inv.toFixed(3)}"/>` +
        `<line x1="${px.toFixed(2)}" y1="${(py - 7 * inv).toFixed(2)}" x2="${px.toFixed(2)}" y2="${(py + 7 * inv).toFixed(2)}" stroke="#b3261e" stroke-width="${inv.toFixed(3)}"/>` +
        `<text x="${(px + 9 * inv).toFixed(2)}" y="${(py - 6 * inv).toFixed(2)}" font-size="${(11 * inv).toFixed(2)}" fill="#b3261e">主点 (0,0)</text></g>`;
-  // 各片：矩形覆盖焦面 [x0, x0+Wp]×[y0, y0+Hp]；探元 (0,0)（= 原点，tanX/tanY 最小端）在右上角——
-  // width 序号向下增大（tanX 增大）、height 序号向左增大（tanY 增大）
+  // 各片：矩形覆盖焦面 [x0, x0+Hp]（沿轨/竖）×[y0−Wp, y0]（垂轨/横）；
+  // 探元 (0,0)（= 原点：tanX 最小 → 顶，tanY 最大 → 左）在左上角；行号向下增大、列号向右增大
   for (let i = 0; i < geo.chipInfo.length; i++){
     const c = geo.chipInfo[i], col = PALETTE[i % PALETTE.length];
-    const x = sx(c.y0 + geo.Hp), w = geo.Hp * k;   // 水平跨度为高向 H·p（右端即探元 (0,0) 一列）
-    const y = sy(c.x0), hh = geo.Wp * k;           // 垂直跨度为宽向 W·p
-    h += `<g><title>第${i + 1}片（ccd ${c.id}）：原点 (${fmtNum(c.x0 / fac)}, ${fmtNum(c.y0 / fac)}) ${state.originUnit}；` +
-         `tanX ${fmtNum(c.tx0)} → ${fmtNum(c.tx1)}；tanY ${fmtNum(c.ty0)} → ${fmtNum(c.ty1)}；最远角点离轴角 ${fmtDeg(Math.atan(c.corner))}</title>` +
+    const x = sx(c.y0), w = geo.Wp * k;        // 水平跨度 = 垂轨宽 W·p（左缘即探元 (0,0) 列）
+    const y = sy(c.x0), hh = geo.Hp * k;       // 垂直跨度 = 沿轨高 H·p（顶缘即探元 (0,0) 行）
+    h += `<g><title>第${i + 1}片（ccd ${c.id}）：焦面原点 (${fmtNum(c.x0 / fac)}, ${fmtNum(c.y0 / fac)}) ${state.originUnit}（相对光轴中心，探元 (0,0) 在该片左上角）；` +
+         `tanX ${fmtNum(c.tx0)} → ${fmtNum(c.tx1)}（行号 0→H−1）；tanY ${fmtNum(c.ty0)} → ${fmtNum(c.ty1)}（列号 0→W−1）；最远角点离轴角 ${fmtDeg(Math.atan(c.corner))}</title>` +
          `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${hh.toFixed(2)}" rx="${(2 * inv).toFixed(2)}" fill="${col}" fill-opacity="0.32" stroke="${col}" stroke-width="${(1.2 * inv).toFixed(3)}"/>` +
          (w * z >= 26 && hh * z >= 15 ? `<text x="${(x + w / 2).toFixed(2)}" y="${(y + hh / 2 + 4 * inv).toFixed(2)}" text-anchor="middle" font-size="${(11 * inv).toFixed(2)}" fill="#1f2a36">${i + 1}</text>` : '') +
          `</g>`;
@@ -914,8 +926,8 @@ function renderDerived(opt, geo){
   d('dv_p', opt.p && opt.derived.includes('p') ? opt.p : null, [$('#un_p').value, FU[$('#un_p').value]]);
   d('dv_Horb', opt.H && opt.derived.includes('H') ? opt.H : null, [$('#un_Horb').value, FU[$('#un_Horb').value]]);
   d('dv_GSD', opt.GSD && opt.derived.includes('GSD') ? opt.GSD : null, [$('#un_GSD').value, FU[$('#un_GSD').value]]);
-  $('#dv_W').textContent = geo ? `单片物理宽 = W·p = ${fmtMm(geo.Wp)}` : '';
-  $('#dv_H').textContent = geo ? `单片物理高 = H·p = ${fmtMm(geo.Hp)}` : '';
+  $('#dv_W').textContent = geo ? `单片垂轨宽 = W·p = ${fmtMm(geo.Wp)}` : '';
+  $('#dv_H').textContent = geo ? `单片沿轨高 = H·p = ${fmtMm(geo.Hp)}` : '';
 }
 
 function renderSum(opt, geo){
@@ -939,8 +951,8 @@ function renderLay(geo){
   let h = `<div class="item ok" style="margin-bottom:8px"><span class="st">▣</span><span class="nm">虚拟整帧（第0块）</span>` +
     `<span class="dt">${geo.Vw}×${geo.Vh} 像元（外接框）；tanX ${fmtNum(geo.tanXR[0])} → ${fmtNum(geo.tanXR[1])}，` +
     `tanY ${fmtNum(geo.tanYR[0])} → ${fmtNum(geo.tanYR[1])}</span></div>`;
-  h += '<table><tr class="grprow"><td colspan="6">各片布置（片序 = 原点文件行序）</td></tr>' +
-    '<tr><th>片号</th><th>ccd</th><th>原点 x₀</th><th>原点 y₀</th><th>tanX / tanY 范围</th><th>最远角点离轴角</th></tr>';
+  h += '<table><tr class="grprow"><td colspan="6">各片布置（片序 = 原点文件行序；焦面原点相对光轴中心）</td></tr>' +
+    '<tr><th>片号</th><th>ccd</th><th>焦面原点 x₀</th><th>焦面原点 y₀</th><th>tanX / tanY 范围</th><th>最远角点离轴角</th></tr>';
   for (let i = 0; i < geo.chipInfo.length; i++){
     const c = geo.chipInfo[i];
     h += `<tr><td>第 ${i + 1} 片</td><td class="v">${c.id}</td>

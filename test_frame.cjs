@@ -63,12 +63,12 @@ console.log('Case A：gf4b-VIS.coef 解析——头字段、块结构、几何�
   const virt = ref.blocks[0], chips = ref.blocks.slice(1);
   assert(virt.x[0] === Math.min(...chips.map(b => b.x[0])) &&
          virt.y[0] === Math.min(...chips.map(b => b.y[0])),
-    '虚拟块两轴 c0 与各片最小 c0 严格相等（外接框口径）');
+    '实例虚拟块两轴 c0 = 各片最小 c0（实例自身口径；本工具设计口径 lookAngleY c0 = max y0，见 Case C）');
   const s = 5.517241379310344e-7;                                  // 实例 p/f
   assert(chips.every(b => Math.abs(b.x[1] - s) < 1e-21 && Math.abs(b.y[2] - s) < 1e-21),
-    `各片 lookAngleX c1 与 lookAngleY c2 均为 ${s.toExponential()}（X 随 x、Y 随 y 变化）`);
+    `实例自身口径：各片 lookAngleX 线性项在 c1、lookAngleY 在 c2，均为 ${s.toExponential()}`);
   assert(chips.every(b => Math.abs(b.x[2]) < 1e-21 && Math.abs(b.y[1]) < 1e-21),
-    '各片交叉项 c2(X)/c1(Y) ≈ 0（X 与 y、Y 与 x 无关）');
+    '各片交叉项 c2(X)/c1(Y) ≈ 0（实例 X/Y 各只随一个变量变化）');
   assert(ref.blocks.every(b => b.x.slice(3).every(v => Math.abs(v) < 1e-20) &&
                                b.y.slice(3).every(v => Math.abs(v) < 1e-20)),
     '高次项均为 e-2x 量级标定噪声（|c| < 1e-20）');
@@ -86,44 +86,51 @@ console.log('Case A：gf4b-VIS.coef 解析——头字段、块结构、几何�
     'lookAngle 系数以两个空格分隔（10 段，段内无空白）');
 }
 
-console.log('Case B：理想 2×2 拼接（搭接 2072×2138）重现 gf4b 虚拟整帧尺寸 22504×22438');
+console.log('Case B：理想 2×2 拼接（行向搭接 2138、列向搭接 2072）重现 gf4b 虚拟整帧尺寸 22504×22438');
 {
   const s = 5.517241379310344e-7, f = 6.5, p = s * f;
-  const W = 12288, Hh = 12288, ox = 2072, oy = 2138;
-  const chips = [
+  const W = 12288, Hh = 12288, oRow = 2138, oCol = 2072;
+  const chips = [                                    // (x0 沿轨行向, y0 垂轨列向)
     {id: 1, x0: 0, y0: 0},
-    {id: 2, x0: (W - ox) * p, y0: 0},
-    {id: 3, x0: 0, y0: (Hh - oy) * p},
-    {id: 4, x0: (W - ox) * p, y0: (Hh - oy) * p},
+    {id: 2, x0: 0, y0: (W - oCol) * p},              // 垂轨右片
+    {id: 3, x0: (Hh - oRow) * p, y0: 0},             // 沿轨下片
+    {id: 4, x0: (Hh - oRow) * p, y0: (W - oCol) * p},
   ];
   const geo = core.buildGeometry({B: 1, W, H: Hh, slope: s, f, order: 'chip', chips});
   assert(geo.errors.length === 0, '几何无错误');
   assert(geo.Vw === 22504 && geo.Vh === 22438,
-    `虚拟整帧 = ⌈(max−min)/p⌉+W → ${geo.Vw}×${geo.Vh}（期望 22504×22438）`);
+    `虚拟整帧 width = 2W−oCol = 22504（垂轨）、height = 2H−oRow = 22438（沿轨）→ 得 ${geo.Vw}×${geo.Vh}`);
   assert(geo.blocks.length === 5 && geo.blocks[0].width === 22504 && geo.blocks[0].height === 22438,
     '块数 5，第 0 块为虚拟整帧');
+  assert(geo.blocks[0].cx[0] === 0 && relErr(geo.blocks[0].cy[0], (W - oCol) * p / f) < 1e-12,
+    '虚拟块 c0：lookAngleX = min x0 = 0（行 0 = 帧顶）、lookAngleY = max y0 = (W−oCol)·p/f（列 0 = 帧左缘）');
+  assert(geo.blocks[0].cx[2] === s && geo.blocks[0].cy[1] === -s,
+    '虚拟块线性项：c2(X) = +p/f（行号）、c1(Y) = −p/f（列号）');
   assert(geo.overlapPairs.length === 6,
     `2×2 拼接共 6 对片 2D 搭接（4 邻接 + 2 对角，得 ${geo.overlapPairs.length}）`);
-  assert(geo.overlapPairs.some(q => Math.abs(q.ox - ox) < 1e-6 && Math.abs(q.oy - 12288) < 1e-6) &&
-         geo.overlapPairs.some(q => Math.abs(q.ox - 12288) < 1e-6 && Math.abs(q.oy - oy) < 1e-6) &&
-         geo.overlapPairs.some(q => Math.abs(q.ox - ox) < 1e-6 && Math.abs(q.oy - oy) < 1e-6),
-    `搭接像元数：x 邻接对 ${ox}×12288、y 邻接对 12288×${oy}、对角对 ${ox}×${oy}`);
+  assert(geo.overlapPairs.some(q => Math.abs(q.ox - oRow) < 1e-6 && Math.abs(q.oy - 12288) < 1e-6) &&
+         geo.overlapPairs.some(q => Math.abs(q.ox - 12288) < 1e-6 && Math.abs(q.oy - oCol) < 1e-6) &&
+         geo.overlapPairs.some(q => Math.abs(q.ox - oRow) < 1e-6 && Math.abs(q.oy - oCol) < 1e-6),
+    `搭接像元数：沿轨邻接对 ${oRow}×12288、垂轨邻接对 12288×${oCol}、对角对 ${oRow}×${oCol}`);
   assert(geo.gapX.total === 0 && geo.gapY.total === 0, '投影方向无覆盖间隙');
-  const text = core.buildCoefText(1, geo.N, geo.blocks);
-  const mine = parseCoef(text);
-  assert(mine.blocks[2].x[0] === 0 || relErr(mine.blocks[2].x[0], (W - ox) * s) < 1e-12,
-    '第 2 片 c0 = (W−搭接)·p/f');
-  // 非整像素间距：外接框 ceil
+  const mine = parseCoef(core.buildCoefText(1, geo.N, geo.blocks));
+  assert(relErr(mine.blocks[2].y[0], (W - oCol) * p / f) < 1e-12 &&
+         relErr(mine.blocks[3].x[0], (Hh - oRow) * p / f) < 1e-12,
+    '第 2 片 lookAngleY c0 = (W−oCol)·p/f（垂轨）、第 3 片 lookAngleX c0 = (H−oRow)·p/f（沿轨）');
+  // 非整像素间距：外接框 ceil（垂轨入 width、沿轨入 height）
   const p2 = 1e-4;
-  const geo2 = core.buildGeometry({B: 1, W: 10, H: 8, slope: p2 / 1, f: 1, order: 'chip',
+  const geo2 = core.buildGeometry({B: 1, W: 10, H: 8, slope: p2, f: 1, order: 'chip',
+    chips: [{id: 1, x0: 0, y0: 0}, {id: 2, x0: 0, y0: 100.5 * p2}]});
+  assert(geo2.Vw === 111, `非整像素垂轨间距：Δy/p = 100.5 → width ${geo2.Vw}（期望 ceil(100.5+10)=111）`);
+  const geo2b = core.buildGeometry({B: 1, W: 10, H: 8, slope: p2, f: 1, order: 'chip',
     chips: [{id: 1, x0: 0, y0: 0}, {id: 2, x0: 100.5 * p2, y0: 0}]});
-  assert(geo2.Vw === 111, `非整像素间距 ceil：跨度 100.5+10 = 110.5 → width ${geo2.Vw}（期望 111）`);
-  const geo3 = core.buildGeometry({B: 1, W: 10, H: 8, slope: p2 / 1, f: 1, order: 'chip',
+  assert(geo2b.Vh === 109, `非整像素沿轨间距：Δx/p = 100.5 → height ${geo2b.Vh}（期望 ceil(100.5+8)=109）`);
+  const geo3 = core.buildGeometry({B: 1, W: 10, H: 8, slope: p2, f: 1, order: 'chip',
     chips: [{id: 1, x0: 0, y0: 0}]});
   assert(geo3.Vw === 10 && geo3.Vh === 8, '单片：虚拟整帧 = 单片尺寸');
 }
 
-console.log('Case C：用 gf4b 实例片 c0 反推原点 → 重新生成 → 系数复现');
+console.log('Case C：用 gf4b 实例片 c0 反推原点 → 重新生成 → 系数复现（本工具口径 c2(X)=+s、c1(Y)=−s）');
 {
   const raw = fs.readFileSync(path.join(__dirname, 'gf4b-VIS.coef'), 'utf8');
   const ref = parseCoef(raw);
@@ -135,16 +142,19 @@ console.log('Case C：用 gf4b 实例片 c0 反推原点 → 重新生成 → �
   let ok = true;
   for (let k = 1; k < 5; k++){
     const a = ref.blocks[k], b = mine.blocks[k];
-    if (b.x[0] !== a.x[0] || b.y[0] !== a.y[0] || b.x[1] !== s || b.y[2] !== s) ok = false;
-    for (let j = 2; j < 10; j++) if (b.x[j] !== 0) ok = false;   // lookAngleX 仅 c0、c1 非零
-    for (let j = 1; j < 10; j++) if (j !== 2 && b.y[j] !== 0) ok = false;  // lookAngleY 仅 c0、c2 非零
+    if (b.x[0] !== a.x[0] || b.y[0] !== a.y[0] || b.x[2] !== s || b.x[1] !== 0 ||
+        b.y[1] !== -s || b.y[2] !== 0) ok = false;
+    for (let j = 3; j < 10; j++) if (b.x[j] !== 0 || b.y[j] !== 0) ok = false;
   }
-  assert(ok, '4 物理片 c0 逐位复原、c1/c2 = s、其余 9 项精确为 0');
-  assert(mine.blocks[0].x[0] === ref.blocks[0].x[0] && mine.blocks[0].y[0] === ref.blocks[0].y[0],
-    '虚拟块 c0 = 实例虚拟块 c0（min 口径一致）');
-  assert(mine.blocks[0].width >= ref.blocks[0].width && mine.blocks[0].height >= ref.blocks[0].height,
-    `外接框 ≥ 实例设计格网（得 ${mine.blocks[0].width}×${mine.blocks[0].height} vs 实例 22504×22438，` +
-    `差源自实例实测片位姿偏差）`);
+  assert(ok, '4 物理片 c0 逐位复原；lookAngleX 仅 c0、c2=+s，lookAngleY 仅 c0、c1=−s，其余精确 0');
+  assert(mine.blocks[0].x[0] === ref.blocks[0].x[0],
+    '虚拟块 lookAngleX c0 = min x0 = 实例虚拟块 c0（行 0 = 帧顶）');
+  const maxY0 = Math.max(...chips.map(c => c.y0));
+  assert(mine.blocks[0].y[0] === maxY0 && maxY0 !== ref.blocks[0].y[0],
+    '虚拟块 lookAngleY c0 = max y0（列 0 = 帧左缘、tanY 左正；实例文件用 min 系其自身口径，故不等）');
+  assert(mine.blocks[0].width >= 22438 && mine.blocks[0].height >= 22438,
+    `外接框（${mine.blocks[0].width}×${mine.blocks[0].height}）不小于实例设计格网 22438` +
+    `（实例 22504×22438，差源自实例实测片位姿偏差）`);
 }
 
 console.log('Case D：kjg.txt 原点解析与鲁棒性');
@@ -190,17 +200,19 @@ console.log('Case E：块顺序（片优先 / 波段优先）与多项式语义'
     chips: [{id: 1, x0: 0, y0: 0}, {id: 2, x0: 1e-3, y0: 0}]});
   assert(geoB.blocks.slice(1).map(q => q.i + '/' + q.b).join(' ') === '1/1 2/1 1/2 2/2',
     '波段优先顺序：b 外层、i 内层');
-  // 二元 3 次多项式：tanX 只依赖 x、tanY 只依赖 y
+  // 二元 3 次多项式（evalPoly(c, 列号 u, 行号 v)）：tanX 只依赖行号 v、tanY 只依赖列号 u
   const slope = 2e-5, f = 1.5, W = 100, Hh = 50;
   const g2 = core.buildGeometry({B: 1, W, H: Hh, slope, f, order: 'chip',
     chips: [{id: 1, x0: 0.01, y0: -0.02}]});
   const cx = g2.blocks[1].cx, cy = g2.blocks[1].cy;
   assert(relErr(evalPoly(cx, 0, 0), 0.01 / 1.5) < 1e-12 &&
-         relErr(evalPoly(cx, 99, 37), 0.01 / 1.5 + 99 * slope) < 1e-12,
-    'tanX(x,y) = x0/f + (p/f)·x（与 y 无关，含 10 项求值）');
+         relErr(evalPoly(cx, 99, 0), 0.01 / 1.5) < 1e-12 &&
+         relErr(evalPoly(cx, 5, 49), 0.01 / 1.5 + 49 * slope) < 1e-12,
+    'tanX(u,v) = x0/f + (p/f)·行号 v（与列号 u 无关，含 10 项求值）');
   assert(relErr(evalPoly(cy, 0, 0), -0.02 / 1.5) < 1e-12 &&
-         relErr(evalPoly(cy, 63, 49), -0.02 / 1.5 + 49 * slope) < 1e-12,
-    'tanY(x,y) = y0/f + (p/f)·y（与 x 无关）');
+         relErr(evalPoly(cy, 0, 37), -0.02 / 1.5) < 1e-12 &&
+         relErr(evalPoly(cy, 99, 0), -0.02 / 1.5 - 99 * slope) < 1e-12,
+    'tanY(u,v) = y0/f − (p/f)·列号 u（与行号 v 无关）');
 }
 
 console.log('Case F：字节级 golden——完整 .coef 文件逐字节比对');
@@ -209,8 +221,8 @@ console.log('Case F：字节级 golden——完整 .coef 文件逐字节比对')
     chips: [{id: 1, x0: 0.5, y0: -0.25}]});           // 全体二进制可精确表示 → 末位确定
   const text = core.buildCoefText(1, 1, geo.blocks);
   const Z = '0.000000000000000000e+00';
-  const lx = 'lookAngleX: 5.000000000000000000e-01  1.250000000000000000e-01  ' + Array(8).fill(Z).join('  ');
-  const ly = 'lookAngleY: -2.500000000000000000e-01  ' + Z + '  1.250000000000000000e-01  ' + Array(7).fill(Z).join('  ');
+  const lx = 'lookAngleX: 5.000000000000000000e-01  ' + Z + '  1.250000000000000000e-01  ' + Array(7).fill(Z).join('  ');
+  const ly = 'lookAngleY: -2.500000000000000000e-01  -1.250000000000000000e-01  ' + Z + '  ' + Array(7).fill(Z).join('  ');
   const golden = [
     'Type=Frame', 'CamPoly=3', 'bandCount=1', 'sensorCount=1',
     'angleBiasRoll=0.000000000000000000',
@@ -329,7 +341,7 @@ console.log('Case I：DOM 冒烟——stub DOM 装载页面脚本：默认参数
   const vm = require('vm');
   const srcs = [...html.matchAll(/<script(?:\s+id="(\w+)")?>([\s\S]*?)<\/script>/g)];
   const domSrc = srcs.find(mm => !mm[1])[2];
-  const seed = {in_B:'1', in_W:'2048', in_H:'5120', in_f:'2000', in_p:'10', in_Horb:'500',
+  const seed = {in_B:'1', in_W:'5120', in_H:'2048', in_f:'2000', in_p:'10', in_Horb:'500',
     in_GSD:'2.5', in_R:'6371', un_f:'mm', un_p:'μm', un_Horb:'km', un_GSD:'m', un_R:'km',
     unOrig:'mm', orderSel:'chip', tolSel:'0.02'};
   const E = {};
@@ -369,9 +381,9 @@ console.log('Case I：DOM 冒烟——stub DOM 装载页面脚本：默认参数
     '页面装载：预填 kjg 24 片原点（12 行 y=-38.256）');
   assert(E.coefPre.textContent.startsWith('Type=Frame') &&
          E.coefPre.textContent.includes('sensorCount=24') &&
-         E.coefPre.textContent.includes('width= 45134') &&
-         E.coefPre.textContent.includes('height= 9820'),
-    'recalc 生成 .coef 预览：25 块、虚拟整帧 45134×9820');
+         E.coefPre.textContent.includes('width= 9820') &&
+         E.coefPre.textContent.includes('height= 45134'),
+    'recalc 生成 .coef 预览：25 块、虚拟整帧 9820×45134（宽=垂轨列向、高=沿轨行向）');
   assert(E.banner.className === 'ok', '默认参数全部检查通过（banner ok）');
   // 示意图：坐标轴方向 + 结构
   assert(E.fzPct.textContent === '100%' && E.focalSvg.attrs.viewBox === '0 0 760 540',
@@ -387,11 +399,11 @@ console.log('Case I：DOM 冒烟——stub DOM 装载页面脚本：默认参数
   const chipsR = rects.slice(1);          // 第 0 个 rect 为虚拟整帧虚线框
   const m1 = inner.match(/<rect x="([-\d.]+)" y="([-\d.]+)"[^>]*fill="#2059a8"/);
   assert(m1 && +m1[1] === Math.max(...chipsR.map(r => r.x)) && +m1[2] === Math.min(...chipsR.map(r => r.y)),
-    '第 1 片在最上、最右（tanX 最小 → 顶、tanY 最小 → 右；探元 (0,0) 在右上角一端）');
+    '第 1 片在最上、最右（x0 最小 → 帧顶、y0 最小 → 垂轨最右；该片探元 (0,0) 在其左上角）');
   const cols = new Set(chipsR.map(r => r.x.toFixed(1)));
   assert(cols.size === 2, `y0 两值 → 24 片分两列（得 ${cols.size} 列）`);
   assert(chipsR.every(r => r.h < r.w) && rects[0].h > rects[0].w,
-    'width 方向竖放：片竖跨 W·p·k < 横跨 H·p·k；虚拟整帧外接框竖长（kjg 横长原点 → 图中竖条）');
+    '片横跨（垂轨 W·p·k）> 竖跨（沿轨 H·p·k）；虚拟整帧竖长（kjg x0 沿轨 ±225 → 图中竖条，图像视图与焦面视图方向一致）');
   assert((inner.match(/text-anchor="middle"/g) || []).length === 24,
     '默认视图即显示 24 个片号标签（文字 11px 恒定）');
   // 缩放控件
