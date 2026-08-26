@@ -124,7 +124,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
         <p><b>扫描镜 2:1</b>：45° 扫描镜转 1°，视线摆 2°。视线角速度 = 2×镜转速，帧间视线角 <code>Δθ = 2·ω镜·t_f</code>。</p>
         <p><b>总摆扫角</b>：<code>Θ = N_f × Δθ</code>。</p>
         <p><b>时序</b>：摆扫周期 T（两次相邻摆扫开始时刻之差）= 成像时长 <code>T成像 = N_f·t_f</code>（单程摆扫）+ 往返时间 <code>T往返</code>（回扫，不成像）。T 在沿迹组输入，留空则按连续摆扫（<code>T往返 = 0</code>）<code>T = N_f·t_f</code> 推导；也可只输入 <code>T往返</code>，由 <code>T = N_f·t_f + T往返</code> 推出。</p>
-        <p><b>漏扫 / 采样判据（核心）</b>：① 帧间步进：帧间角度 <code>Δθ</code> 对应步进 <code>s = H·Δθ</code> 与摆扫方向地面分辨率 <code>GSD⊥ = H·p⊥/f</code> 对比，<code>s &gt; GSD⊥</code> → 帧间欠采样（每步跨多像元，不判帧间漏扫）；② 条带：<code>v_g·T &gt; D∥</code> → 相邻摆扫间沿轨漏缝；③ <code>T &lt; T成像</code> → 摆扫未结束即开始下一程；④ 每次摆扫距离：<code>v·T &gt; D∥</code>（v 为卫星轨道速度；D∥ = 沿轨方向视场大小对应的地面距离 = H·Ω∥ = H·L/f）→ 相邻摆扫间沿轨漏缝（较 ② 的地速口径更保守）。</p>
+        <p><b>漏扫 / 采样判据（核心）</b>：① 帧间：摆扫方向分辨率 <code>= IFOV⊥×H = H·p⊥/f</code>，摆扫方向帧间距离 <code>= Δθ×H</code>；分辨率 &gt; 帧间距离才无漏缝，<code>分辨率 ≤ 帧间距离</code> → 帧间漏缝（欠采样，每步跨多像元）；② 条带：<code>v_g·T &gt; D∥</code> → 相邻摆扫间沿轨漏缝；③ <code>T &lt; T成像</code> → 摆扫未结束即开始下一程；④ 每次摆扫距离：<code>v·T &gt; D∥</code>（v 为卫星轨道速度；D∥ = 沿轨方向视场大小对应的地面距离 = H·Ω∥ = H·L/f）→ 相邻摆扫间沿轨漏缝（较 ② 的地速口径更保守）。</p>
         <p><b>球面换算（视线角 θ → 地心角 φ）</b>：斜距 <code>t = a·cosθ − √(R² − a²·sin²θ)</code>，地心角 <code>φ = atan2(t·sinθ, a − t·cosθ)</code>；幅宽 <code>SW = R·φ总</code>（星下点居中：<code>φ总 = 2·φ(Θ/2)</code>；从星下点开始：<code>φ总 = φ(Θ)</code>）。视线角超过地平线角 <code>θh = arcsin(R/a)</code> 时视线不与地球相交。</p>
         <p><b>速度</b>：轨道速度 <code>v = √(μ/a)</code>；星下点地速 <code>v_g = v·R/a</code>。漏扫与推进计算使用 v_g。</p>
         <p><b>容差</b>：恒等式两侧相对偏差超过容差判为矛盾（红色）；物理约束为不等式，违反即红色报警；黄色为提示性信息（如摆扫周期大于单程时长，存在空闲/回扫时间）。</p>
@@ -140,7 +140,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：参数定义、求解、校验（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260826-4';
+const VERSION = 'v1.0.260826-5';
 
 const UNIT_TYPES = {
   dist:  {units:[['km',1e3],['m',1],['cm',1e-2],['mm',1e-3],['μm',1e-6]]},
@@ -336,15 +336,16 @@ function buildConstraints(val, mode){
       C.push({name:'条带间不漏扫（v_g·T ≤ D∥）',status:'bad',
         detail:`两次摆扫之间沿轨漏缝：周期内推进 ${fmtSI(d,'dist')} > 沿轨视场对应地面距离 D∥ ${fmtSI(D,'dist')}，漏缝 ${fmtSI(d-D,'dist')}（占覆盖 ${pct((d-D)/D)}）`});
   }
-  // ② 帧间步进与摆扫方向分辨率匹配（老金口径）：Δθ 对应步进 ≤ 单像元地面分辨率，不判帧间漏扫
+  // ② 帧间无漏缝（老金口径）：摆扫方向分辨率（IFOV⊥×H）> 帧间距离（Δθ×H）
   if (has('H','dtheta','p_cross','f')){
-    const s = x.H * x.dtheta, g = x.H * x.p_cross / x.f;
-    if (s <= g)
-      C.push({name:'帧间步进 ≤ 摆扫方向地面分辨率（H·Δθ ≤ GSD⊥）',status:'ok',
-        detail:`Δθ 对应步进 ${fmtSI(s,'dist')} ≤ 摆扫方向地面分辨率 ${fmtSI(g,'dist')}（GSD⊥ = H·p⊥/f），折合 ${fmtNum(s/g)} 像元/步`});
+    const g = x.H * (x.p_cross / x.f);   // 摆扫方向分辨率 = 瞬时视场角 IFOV⊥ × 轨道高度
+    const s = x.H * x.dtheta;            // 摆扫方向帧间距离 = 帧间角度 Δθ × 轨道高度
+    if (g >= s)
+      C.push({name:'帧间无漏缝（摆扫方向分辨率 ≥ 帧间距离）',status:'ok',
+        detail:`摆扫方向分辨率 ${fmtSI(g,'dist')}（IFOV⊥×H）≥ 帧间距离 ${fmtSI(s,'dist')}（Δθ×H），步进折合 ${fmtNum(s/g)} 像元/步，无漏缝`});
     else
-      C.push({name:'帧间步进 ≤ 摆扫方向地面分辨率（H·Δθ ≤ GSD⊥）',status:'bad',
-        detail:`帧间步进 ${fmtSI(s,'dist')} > 摆扫方向地面分辨率 ${fmtSI(g,'dist')}（GSD⊥ = H·p⊥/f），每步跨 ${fmtNum(s/g)} 像元，帧间欠采样`});
+      C.push({name:'帧间无漏缝（摆扫方向分辨率 ≥ 帧间距离）',status:'bad',
+        detail:`帧间漏缝：摆扫方向分辨率 ${fmtSI(g,'dist')}（IFOV⊥×H）< 帧间距离 ${fmtSI(s,'dist')}（Δθ×H），每步跨 ${fmtNum(s/g)} 像元，欠采样`});
   }
   // ③ 时序匹配：摆扫周期 T = 成像时长 + 往返时间，往返时间不得为负
   if (has('t_fly','N_f','t_frame')){
@@ -391,13 +392,13 @@ function buildRefs(val, mode){
   const has = (...ids) => ids.every(d => val[d]);
   if (has('omega_m'))            R.push(['视线角速度 ω视线 = 2×ω镜', fmtSI(2*x.omega_m,'angvel')]);
   if (has('H','p_along','f'))    R.push(['星下点 GSD（沿迹）= H·p∥/f', fmtSI(x.H*x.p_along/x.f,'dist')]);
-  if (has('H','p_cross','f'))    R.push(['星下点 GSD（穿迹）= H·p⊥/f', fmtSI(x.H*x.p_cross/x.f,'dist')]);
+  if (has('H','p_cross','f'))    R.push(['摆扫方向分辨率 GSD⊥ = IFOV⊥×H', fmtSI(x.H*x.p_cross/x.f,'dist')]);
   if (has('p_along','f'))        R.push(['单像元 IFOV（沿迹）= p∥/f', fmtSI(x.p_along/x.f,'ang')]);
   if (has('p_cross','f'))        R.push(['单像元 IFOV（穿迹）= p⊥/f', fmtSI(x.p_cross/x.f,'ang')]);
   if (has('N_f','t_frame'))      R.push(['成像时长 T成像 = N_f·t_f（单程摆扫）', fmtSI(x.N_f*x.t_frame,'time')]);
   if (has('v_gnd','t_fly'))      R.push(['摆扫周期内卫星飞行距离 = v_g·T', fmtSI(x.v_gnd*x.t_fly,'dist')]);
   if (has('v_gnd','t_fly','D_along')) R.push(['条带重叠率（沿迹）', pct(1-x.v_gnd*x.t_fly/x.D_along)]);
-  if (has('H','dtheta','p_cross','f')) R.push(['帧间步进折合像元数（H·Δθ / GSD⊥）', fmtNum(x.H*x.dtheta/(x.H*x.p_cross/x.f)) + ' 像元']);
+  if (has('H','dtheta','p_cross','f')) R.push(['摆扫方向帧间距离折合像元数（Δθ×H / IFOV⊥×H）', fmtNum(x.H*x.dtheta/(x.H*x.p_cross/x.f)) + ' 像元']);
   if (has('R','a'))              R.push(['地平线视线角 θh = arcsin(R/a)', fmtSI(Math.asin(x.R/x.a),'ang')]);
   if (has('Theta','dtheta','R','a')){
     const thE = mode==='center' ? x.Theta/2 : x.Theta;

@@ -89,13 +89,13 @@ console.log('Case E：只给卫星速度 → 反推轨道');
   assert(val.H && relErr(val.H.value, 500e3) < 0.005, 'H = μ/v² − R ≈ 500 km（0.5% 内，受 v 输入精度限制）');
 }
 
-console.log('Case F：帧间步进超过摆扫方向地面分辨率 → 帧间欠采样报警');
+console.log('Case F：摆扫方向分辨率 < 帧间距离 → 帧间漏缝报警');
 {
   const val = core.solve({...base, omega_m:30*D2R, dtheta:2*30*D2R*0.01, s_step:500e3*2*30*D2R*0.01, Theta:600*2*30*D2R*0.01}, 'start');
   const con = core.buildConstraints(val, 'start');
-  const hit = con.find(c=>c.name.includes('帧间步进') && c.status==='bad');
+  const hit = con.find(c=>c.name.includes('帧间无漏缝') && c.status==='bad');
   console.log('    ' + (hit ? hit.detail : '（未触发）'));
-  assert(!!hit, '帧间步进欠采样约束触发为 bad（s ≈ 5.236 km >> GSD⊥ 5 m）');
+  assert(!!hit, '帧间漏缝约束触发为 bad（分辨率 5 m < 帧间距离 ≈ 5.236 km）');
 }
 
 console.log('Case G：参数 TXT 序列化 → 解析 往返一致');
