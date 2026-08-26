@@ -21,9 +21,9 @@ function relErr(a, b){ return Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b
 
 /* 一套典型自洽参数（SI 单位） */
 const D2R = Math.PI/180;
-const omegaM = 0.5 * D2R;                 // 0.5 °/s 镜转速
-const dtheta = 2 * omegaM * 0.01;         // 帧间视线角 0.01°
-const thetaTot = 600 * dtheta;            // 6°
+const omegaM = 4e-4;                      // 镜转速 4e-4 rad/s（0.0229°/s）：Δθ 步进 4 m = 0.8 像元 ≤ GSD⊥ 5 m
+const dtheta = 2 * omegaM * 0.01;         // 帧间视线角 8e-6 rad
+const thetaTot = 600 * dtheta;            // 4.8e-3 rad（0.275°）
 const phiTot = core.totalGeoPhi(thetaTot, 6371e3, 6871e3, 'start'); // 球面换算（代码自己算，避免手算误差）
 
 const base = {
@@ -65,9 +65,9 @@ console.log('Case C：只给骨干参数 → 推导链补全');
   const val = core.solve(ins, 'start');
   assert(val.D_along && relErr(val.D_along.value, 51200) < 1e-9, 'D∥ = H·L/f = 51200 m');
   assert(val.D_cross && relErr(val.D_cross.value, 5120) < 1e-9, 'D⊥ = H·W/f = 5120 m');
-  assert(val.Theta && relErr(val.Theta.value, thetaTot) < 1e-9, 'Θ = N_f·Δθ = 6°');
+  assert(val.Theta && relErr(val.Theta.value, thetaTot) < 1e-9, 'Θ = N_f·Δθ = 4.8e-3 rad（0.275°）');
   assert(val.t_fly && relErr(val.t_fly.value, 6) < 1e-9, 'T = N_f·t_f（连续摆扫）= 6 s');
-  assert(val.SW && relErr(val.SW.value, 52576) < 0.01, 'SW ≈ 52.6 km（球面换算，1% 内）');
+  assert(val.SW && relErr(val.SW.value, 2400) < 0.01, 'SW ≈ 2.400 km（球面换算，1% 内）');
   assert(val.fov_along && relErr(val.fov_along.value, 0.1024) < 1e-9, 'Ω∥ = L/f 推导');
   assert(val.fov_cross && relErr(val.fov_cross.value, 0.01024) < 1e-9, 'Ω⊥ = W/f 推导');
   assert(val.v_gnd && relErr(val.v_gnd.value, 7062) < 0.01, 'v_g = v·R/a ≈ 7062 m/s');
@@ -88,13 +88,13 @@ console.log('Case E：只给卫星速度 → 反推轨道');
   assert(val.H && relErr(val.H.value, 500e3) < 0.005, 'H = μ/v² − R ≈ 500 km（0.5% 内，受 v 输入精度限制）');
 }
 
-console.log('Case F：帧间步进超过瞬时覆盖 → 帧间漏扫报警');
+console.log('Case F：帧间步进超过摆扫方向地面分辨率 → 帧间欠采样报警');
 {
   const val = core.solve({...base, omega_m:30*D2R, dtheta:2*30*D2R*0.01, s_step:500e3*2*30*D2R*0.01, Theta:600*2*30*D2R*0.01}, 'start');
   const con = core.buildConstraints(val, 'start');
-  const hit = con.find(c=>c.name.includes('帧间不漏扫') && c.status==='bad');
+  const hit = con.find(c=>c.name.includes('帧间步进') && c.status==='bad');
   console.log('    ' + (hit ? hit.detail : '（未触发）'));
-  assert(!!hit, '帧间漏扫约束触发为 bad');
+  assert(!!hit, '帧间步进欠采样约束触发为 bad（s ≈ 5.236 km >> GSD⊥ 5 m）');
 }
 
 console.log('Case G：参数 TXT 序列化 → 解析 往返一致');
