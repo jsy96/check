@@ -152,9 +152,6 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
         </select></div>
         <div class="pnote">交错排列下两种取法不同：全局最小 = 最小基偏移 + 较小分量；片内最大→片间最小 = 最大基偏移 + 较小分量</div>
         <div class="derived"></div></div>
-      <div class="prow"><div class="plabel">输出文件名</div>
-        <div class="pctl"><input id="in_fname" type="text" value="pushbroom.coef"></div>
-        <div class="pnote">下载到本地的 .coef 文件名（CRLF 换行、无 BOM、%.18e 系数）</div><div class="derived"></div></div>
     </div>
 
     <div class="card">
@@ -235,7 +232,8 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
     <div class="card"><h2>.coef 文件</h2>
       <div class="sub">预览即文件字节内容（CRLF 换行、无 BOM、系数 %.18e）</div>
       <div id="coefbar">
-        <input id="fnameEcho" type="text" spellcheck="false">
+        <span style="font-size:12px;color:var(--mut);flex:none">文件名</span>
+        <input id="fnameEcho" type="text" spellcheck="false" placeholder="输出文件名">
         <button id="btnSave">保存 .coef 文件</button>
       </div>
       <div id="legend"></div>
@@ -281,7 +279,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：几何模型、系数生成、校验、TXT 读写（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260820-5';
+const VERSION = 'v1.0.260826-1';
 const DEG = Math.PI / 180;
 
 /* ---- C 风格格式化 ---- */

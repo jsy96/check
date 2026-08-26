@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>面阵相机参数计算</title>
+<style>
+:root{
+  --bg:#f4f6f9;--card:#ffffff;--ink:#1f2a36;--mut:#68788a;--line:#dde4ec;
+  --ok:#167a48;--okbg:#e8f6ee;--okln:#bfe6cf;
+  --bad:#b3261e;--badbg:#fdeceb;--badln:#f3c1bd;
+  --info:#7a5d00;--infobg:#fff8e1;--infoln:#ead9a0;
+  --acc:#2059a8;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.65 "Segoe UI",system-ui,"Microsoft YaHei",sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header h1{font-size:16px;margin:0;font-weight:600}
+.ver{color:var(--mut);font-size:12px}
+.hctl{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap}
+.hctl select,.hctl button{font:inherit;font-size:13px;border:1px solid var(--line);
+  border-radius:6px;padding:3px 8px;background:#fff;cursor:pointer}
+.hctl button:hover{border-color:var(--acc);color:var(--acc)}
+main{display:grid;grid-template-columns:minmax(360px,460px) minmax(0,1fr);gap:16px;
+  padding:16px;max-width:1440px;margin:0 auto;align-items:start}
+@media(max-width:1000px){main{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:14px 16px;margin-bottom:16px}
+.card>h2{margin:0 0 4px;font-size:15px}
+.card>.sub{color:var(--mut);font-size:12px;margin-bottom:8px}
+.prow{display:grid;grid-template-columns:minmax(0,1fr) 215px;
+  grid-template-areas:"lb ct" "nt dv";gap:2px 10px;
+  padding:7px 0;border-top:1px dashed var(--line)}
+.prow:first-of-type{border-top:0}
+.plabel{grid-area:lb;font-size:13px;align-self:center}
+.pnote{grid-area:nt;font-size:11.5px;color:var(--mut);line-height:1.45}
+.pctl{grid-area:ct;display:flex;gap:6px}
+.pctl input[type=number],.pctl input[type=text]{flex:1;min-width:0;width:100%;padding:3px 8px;
+  border:1px solid var(--line);border-radius:6px;font:inherit;font-size:13px}
+.pctl input:focus{outline:none;border-color:var(--acc)}
+.pctl select{border:1px solid var(--line);border-radius:6px;background:#fff;
+  font-size:12px;padding:3px 2px;max-width:88px}
+.pctl select.wide{max-width:none;flex:1}
+.pctl .mini{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;
+  background:#fff;cursor:pointer;padding:3px 8px;white-space:nowrap}
+.pctl .mini:hover{border-color:var(--acc);color:var(--acc)}
+.derived{grid-area:dv;font-size:11.5px;color:var(--mut);min-height:15px;
+  font-variant-numeric:tabular-nums}
+#inOrigins{width:100%;min-height:170px;max-height:320px;resize:vertical;padding:6px 8px;
+  border:1px solid var(--line);border-radius:6px;font:12px/1.5 Consolas,"Courier New",monospace;
+  background:#fff;color:var(--ink)}
+#inOrigins:focus{outline:none;border-color:var(--acc)}
+.origbtns{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.origbtns .hint{font-size:11.5px;color:var(--mut)}
+#banner{border-radius:10px;padding:10px 16px;margin-bottom:16px;font-weight:600;
+  border:1px solid var(--line);background:var(--card);color:var(--mut)}
+#banner.ok{background:var(--okbg);border-color:var(--okln);color:var(--ok)}
+#banner.bad{background:var(--badbg);border-color:var(--badln);color:var(--bad)}
+.item{display:flex;gap:8px;padding:7px 10px;border-radius:8px;margin-bottom:6px;
+  border:1px solid var(--line);font-size:13px;align-items:baseline;flex-wrap:wrap}
+.item .st{font-weight:700;width:18px;flex:none}
+.item .nm{flex:none;font-weight:600}
+.item .dt{color:var(--mut);font-variant-numeric:tabular-nums}
+.item.ok{background:var(--okbg);border-color:var(--okln)}.item.ok .st{color:var(--ok)}
+.item.bad{background:var(--badbg);border-color:var(--badln)}.item.bad .st{color:var(--bad)}
+.item.info{background:var(--infobg);border-color:var(--infoln)}.item.info .st{color:var(--info)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);
+  font-variant-numeric:tabular-nums}
+th{color:var(--mut);font-weight:600;font-size:12px}
+td.v{white-space:nowrap}
+tr.grprow td{color:var(--acc);font-weight:600;background:#f2f6fb;padding-top:8px}
+footer{max-width:1440px;margin:0 auto;padding:0 16px 24px}
+details summary{cursor:pointer;font-weight:600;color:var(--acc)}
+.formula-note{font-size:13px;margin-top:8px}
+.formula-note p{margin:8px 0}
+.formula-note code{background:#eef2f7;border-radius:4px;padding:1px 6px;font-size:12.5px}
+#coefbar{display:flex;gap:8px;align-items:center;margin:8px 0 4px;flex-wrap:wrap}
+#coefbar input{flex:1;min-width:200px;padding:4px 8px;border:1px solid var(--line);
+  border-radius:6px;font:13px Consolas,monospace}
+#coefbar button{font:inherit;font-size:13px;border:1px solid var(--acc);color:#fff;
+  background:var(--acc);border-radius:6px;padding:4px 14px;cursor:pointer}
+#coefbar button:hover{background:#174a8e}
+#coefbar button:disabled{background:var(--mut);border-color:var(--mut);cursor:not-allowed}
+#legend{font-size:12px;color:var(--mut);margin:2px 0 6px;line-height:1.5}
+#coefPre{width:100%;max-height:420px;overflow:auto;margin:0;background:#f8fafc;
+  border:1px solid var(--line);border-radius:6px;padding:10px 12px;
+  font:12px/1.55 Consolas,"Courier New",monospace;white-space:pre;
+  tab-size:4}
+#toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(10px);
+  background:#243447;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;max-width:80vw;z-index:99}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{background:var(--bad)}
+#focalWrap{position:relative;height:540px;border:1px solid var(--line);border-radius:6px;
+  background:#fbfcfe;overflow:hidden;touch-action:none}
+#focalWrap svg{display:block;width:100%;height:100%;cursor:grab}
+#focalWrap svg.drag{cursor:grabbing}
+.zoombar{position:absolute;top:8px;right:8px;display:flex;gap:4px;align-items:center;z-index:2;
+  background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:8px;padding:3px 4px}
+.zoombar button{font-family:inherit;font-size:13px;line-height:1.2;border:1px solid var(--line);
+  background:#fff;border-radius:6px;padding:2px 9px;cursor:pointer;color:var(--ink)}
+.zoombar button:hover{border-color:var(--acc);color:var(--acc)}
+.zoombar .pct{font-size:11.5px;color:var(--mut);min-width:42px;text-align:center;
+  font-variant-numeric:tabular-nums}
+#focalEmpty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--mut);font-size:13px}
+@media(max-width:1000px){#focalWrap{height:420px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>面阵相机参数计算</h1>
+  <span class="ver" id="ver"></span>
+  <div class="hctl">
+    <label>容差
+      <select id="tolSel">
+        <option value="0.005">0.5%</option>
+        <option value="0.01">1%</option>
+        <option value="0.02" selected>2%</option>
+        <option value="0.05">5%</option>
+        <option value="0.10">10%</option>
+      </select>
+    </label>
+    <button id="btnImportTxt">读取参数 TXT</button>
+    <button id="btnExportTxt">保存参数 TXT</button>
+    <button id="btnReset">重置</button>
+  </div>
+</header>
+<input type="file" id="fileTxt" accept=".txt,text/plain" hidden>
+<input type="file" id="fileOrig" accept=".txt,.dat,.csv,.text,text/plain" hidden>
+<main>
+  <section id="inputs">
+
+    <div class="card">
+      <h2>CCD 原点（焦面坐标）</h2>
+      <div class="sub">面阵由 N 片 CCD 在焦面上二维拼接；每片原点 (x₀, y₀) 自文本文件读取，N = 原点行数（即 sensorCount）</div>
+      <div class="prow"><div class="plabel">原点文本（可读取文件或直接粘贴编辑）</div>
+        <div class="pctl" style="flex-direction:column;align-items:stretch;gap:0">
+          <textarea id="inOrigins" spellcheck="false"
+            placeholder="每行：片号 x y（TAB/空格/逗号/分号分隔），首行可为 ccd x y 表头；# 与 // 为注释；缺片号列则按行序自动编号"></textarea>
+          <div class="origbtns">
+            <button class="mini" id="btnOrigFile">读取原点 TXT（kjg.txt 格式）</button>
+            <span class="hint" id="origFileHint"></span>
+          </div>
+        </div>
+        <div class="pnote">kjg.txt 实例：表头 <code>ccd&#9;x&#9;y</code> + 24 行原点（mm）；改文本即实时重算</div>
+        <div class="derived" id="dvOrig"></div></div>
+      <div class="prow"><div class="plabel">原点坐标单位</div>
+        <div class="pctl"><select id="unOrig"><option value="mm" selected>mm</option><option value="μm">μm</option></select></div>
+        <div class="pnote">原点坐标、探元尺寸 p 统一换算 SI 后按 tan = 坐标/f 生成系数</div>
+        <div class="derived"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>探测器与文件格式</h2>
+      <div class="sub">Type=Frame、CamPoly=3（二元 3 次多项式，每行 10 系数）；文件含 1 个虚拟整帧块 + N×B 个物理片块</div>
+      <div class="prow"><div class="plabel">波段数 bandCount B</div>
+        <div class="pctl"><input id="in_B" type="number" step="1" min="1" value="1"></div>
+        <div class="pnote">各波段共用同一组 CCD 原点（gf4b-VIS 实例为 1）</div><div class="derived"></div></div>
+      <div class="prow"><div class="plabel">每片探元数 width W</div>
+        <div class="pctl"><input id="in_W" type="number" step="1" min="1" value="2048"></div>
+        <div class="pnote">x 方向（lookAngleX 自变量）探元个数，文件中的 width</div>
+        <div class="derived" id="dv_W"></div></div>
+      <div class="prow"><div class="plabel">每片探元数 height H</div>
+        <div class="pctl"><input id="in_H" type="number" step="1" min="1" value="5120"></div>
+        <div class="pnote">y 方向（lookAngleY 自变量）探元个数，文件中的 height；线阵文件无此行</div>
+        <div class="derived" id="dv_H"></div></div>
+      <div class="prow"><div class="plabel">文件块顺序</div>
+        <div class="pctl"><select id="orderSel" class="wide">
+          <option value="chip">片优先：第1片各波段 → 第2片各波段</option>
+          <option value="band">波段优先：第1波段各片 → 第2波段各片</option>
+        </select></div>
+        <div class="pnote">B=1 时两种顺序等价（gf4b-VIS 实例为 1 波段）</div>
+        <div class="derived"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>轨道 / 光学</h2>
+      <div class="sub">恒等式 GSD = p·H/f（星下点平面近似）；p、f、H、GSD 任留空一项自动推导</div>
+      <div class="prow"><div class="plabel">焦距 f</div>
+        <div class="pctl"><input id="in_f" type="number" step="any" placeholder="留空自动推导"><select id="un_f"><option>mm</option><option>m</option></select></div>
+        <div class="pnote">主距；生成系数必需（或可由 GSD·H/p 反推）</div><div class="derived" id="dv_f"></div></div>
+      <div class="prow"><div class="plabel">探元尺寸 p</div>
+        <div class="pctl"><input id="in_p" type="number" step="any" placeholder="留空自动推导"><select id="un_p"><option>μm</option><option>mm</option></select></div>
+        <div class="pnote">像元尺寸；lookAngleX 的 x 一次项 = lookAngleY 的 y 一次项 = p/f</div><div class="derived" id="dv_p"></div></div>
+      <div class="prow"><div class="plabel">轨道高度 H</div>
+        <div class="pctl"><input id="in_Horb" type="number" step="any" placeholder="留空自动推导"><select id="un_Horb"><option>km</option><option>m</option></select></div>
+        <div class="pnote">用于 GSD / 幅宽计算与地平线角校验</div><div class="derived" id="dv_Horb"></div></div>
+      <div class="prow"><div class="plabel">地面分辨率 GSD</div>
+        <div class="pctl"><input id="in_GSD" type="number" step="any" placeholder="留空自动推导"><select id="un_GSD"><option>m</option><option>cm</option></select></div>
+        <div class="pnote">星下点平面近似 GSD = p·H/f</div><div class="derived" id="dv_GSD"></div></div>
+      <div class="prow"><div class="plabel">地球半径 R</div>
+        <div class="pctl"><input id="in_R" type="number" step="any" value="6371"><select id="un_R"><option>km</option><option>m</option></select></div>
+        <div class="pnote">预填 6371 km；供地平线角校验</div><div class="derived"></div></div>
+    </div>
+
+  </section>
+
+  <section id="report">
+    <div id="banner">请输入参数……</div>
+    <div class="card"><h2>.coef 文件</h2>
+      <div class="sub">预览即文件字节内容（ASCII、CRLF、无 BOM、系数 %.18e 双空格分隔）</div>
+      <div id="coefbar">
+        <span style="font-size:12px;color:var(--mut);flex:none">文件名</span>
+        <input id="fnameEcho" type="text" spellcheck="false" placeholder="输出文件名">
+        <button id="btnSave">保存 .coef 文件</button>
+      </div>
+      <div id="legend"></div>
+      <pre id="coefPre"></pre>
+    </div>
+    <div class="card"><h2>推导汇总</h2>
+      <div class="sub">由当前参数推导的常用中间量（星下点平面近似，除注明外）</div>
+      <div id="tblSum"></div></div>
+    <div class="card"><h2>一致性校验与物理约束</h2>
+      <div class="sub">恒等式偏差超容差或约束违反即报红</div>
+      <div id="lstChk"></div></div>
+    <div class="card"><h2>焦面布置示意</h2>
+      <div class="sub">垂直轴 x（width 方向，lookAngleX）<b>向下为正</b>、水平轴 y（height 方向，lookAngleY）<b>向左为正</b>；各片探元 (0,0) 在该片<b>右上角</b>（width 序号向下增大、height 序号向左增大；数据/图像口径为 width 向右、height 向下，与焦面视图相差 90°）；两轴均为真实比例；虚线框为虚拟整帧外接框；悬停可看数值；<b>滚轮缩放（以光标为中心）、拖动平移</b>，右上角 ＋ / − / 适配，文字大小不随缩放变化</div>
+      <div id="focalWrap">
+        <div class="zoombar">
+          <button id="fzIn" type="button" title="放大">＋</button>
+          <button id="fzOut" type="button" title="缩小">－</button>
+          <button id="fzFit" type="button" title="重置视图">适配</button>
+          <span class="pct" id="fzPct">100%</span>
+        </div>
+        <svg id="focalSvg"></svg>
+        <div id="focalEmpty">参数不足，暂无示意图</div>
+      </div>
+    </div>
+    <div class="card"><h2>布置明细</h2>
+      <div class="sub">各片原点、tan 范围与角点离轴角</div>
+      <div id="tblLay"></div></div>
+  </section>
+</main>
+<footer>
+  <div class="card">
+    <details>
+      <summary>格式与口径说明（点击展开）</summary>
+      <div class="formula-note">
+        <p><b>与线阵（pushbroom）文件的差异</b>：首行多 <code>Type=Frame</code>；多项式头为 <code>CamPoly=3</code>（线阵是 <code>nCamPoly=n</code> 一元 n 次）；每块多一行 <code>height=</code>；lookAngle 为<b>二元 3 次多项式（10 项）</b>，项序 <code>1, x, y, x², xy, y², x³, x²y, xy², y³</code>；系数 %.18e 以<b>两个空格</b>分隔（taijing 线阵实例为单空格）；<code>angleBiasR</code> 为 %.18f 定点、3×3 行组间两空格（gf4b-VIS 实例口径；实例中 [0][2] 为 −0 是标定数据噪声，本工具生成 +0）。</p>
+        <p><b>探元块</b>：共 <code>1 + N×B</code> 块，每块四行 <code>width= 探元数</code>、<code>height= 探元数</code>、<code>lookAngleX: c₀ … c₉</code>、<code>lookAngleY: c₀ … c₉</code>。自变量为 0 基探元序号 x = 0…W−1（width 方向）、y = 0…H−1（height 方向）；多项式取值 (tanX, tanY) 使 <code>(tanX, tanY, 1)</code> 为相机坐标系探元视线矢量。<b>方向口径</b>：探元序号 x/width <b>向右为正</b>、y/height <b>向下为正</b>（数据/图像口径）；对应视线方向 lookAngleX <b>向下为正</b>、lookAngleY <b>向左为正</b>（焦面示意口径）——两口径相差 90°，由正斜率 c₁ = c₂ = p/f 关联（width 序号增大 → tanX 增大 → 焦面图中向下；height 序号增大 → tanY 增大 → 向左）。</p>
+        <p><b>几何模型</b>（已用 gf4b-VIS.coef 实例数值验证）：理想模型下第 i 片 <code>lookAngleX</code> 系数 c₀ = x₀ᵢ/f（原点切角）、c₁ = p/f，其余 0；<code>lookAngleY</code> 系数 c₀ = y₀ᵢ/f、c₂ = p/f，其余 0（gf4b 实例实测：各片 c₁/c₂ 均为 5.517241379310344e-07、相互偏差 &lt; 1e-21，高次项为 e-2x 量级标定噪声，理想生成输出精确 0）。</p>
+        <p><b>虚拟整帧（第 0 块）</b>：全焦面外接框——width = ⌈(max x₀ − min x₀)/p⌉ + W，height 同理；lookAngleX c₀ = min x₀/f、lookAngleY c₀ = min y₀/f（gf4b 实例：虚拟块两轴 c₀ 与各片最小 c₀ 严格相等；其实例尺寸 22504 = 2×12288−2072、22438 = 2×12288−2138，为 2×2 拼接设计搭接约 2072×2138 像元，实测片位姿偏差使外接框（约 22539×22456）比设计格网大一二十至三十五像元，属正常）。</p>
+        <p><b>原点文件</b>：kjg.txt 格式——首行 <code>ccd&#9;x&#9;y</code> 表头（可省略），随后每行 <code>片号 x y</code>，TAB/空格/逗号/分号分隔；# 与 // 为注释；缺片号列按行序自动编号；片顺序即文件行序，sensorCount = 行数。</p>
+        <p><b>搭接 / 间隙</b>：单片物理 footprint = W·p × H·p；两片 |Δx₀| &lt; W·p 且 |Δy₀| &lt; H·p 即存在 2D 搭接（拼接设计常态，如 gf4b 设计搭接约 2072×2138 像元）；x、y 各向做投影区间并集检查，存在间隙即提示（投影全覆盖不排除棋盘形 2D 空洞）。</p>
+        <p><b>GSD / 幅宽 / 视场</b>：星下点平面近似 <code>GSD = p·H/f</code>；幅宽 × 幅高 = 虚拟整帧 Vw×Vh × GSD；X/Y 向全视场角 = atan(tan 末探元) − atan(tan 首探元)，对角视场角 = 两对角角点视线矢量夹角；边缘离轴角 = atan(√(tanX²+tanY²)) 取最远角点，超过地平线角 arcsin(R/(R+H)) 报警。</p>
+        <p><b>字节格式</b>：ASCII、CRLF 换行、无 BOM、末尾单个换行；系数 C 风格 <code>%.18e</code>（指数至少两位，如 <code>1.2e-2 → e-02</code>）双空格分隔；angleBias 三行 <code>%.18f</code> 定点；<code>width=</code> / <code>height=</code> 后各有一个空格，<code>lookAngleX:</code> 后有一个空格。</p>
+      </div>
+    </details>
+  </div>
+  <p style="text-align:center;margin:12px 0 0;font-size:12px;color:var(--mut)">
+    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">鄂ICP备2025092414号-4</a>
+  </p>
+</footer>
+<div id="toast"></div>
+
+<script id="core">
+'use strict';
+/* ============ 核心：原点解析、几何模型、系数生成、校验、TXT 读写（不依赖 DOM，可被 Node 自测加载） ============ */
+const VERSION = 'v1.0.260826-4';
+const DEG = Math.PI / 180;
+const CAM_POLY = 3;                       // 二元 3 次：10 项
+const N_TERMS = (CAM_POLY + 1) * (CAM_POLY + 2) / 2;   // = 10
+
+/* ---- C 风格格式化 ---- */
+function fmtE18(v){ /* %.18e：指数部分至少两位（e-02） */
+  if (v !== v) return 'nan';
+  if (v === 0) return '0.000000000000000000e+00';
+  const neg = v < 0 ? '-' : '';
+  const s = Math.abs(v).toExponential(18);
+  const ei = s.indexOf('e');
+  const mant = s.slice(0, ei);
+  const ex = s.slice(ei + 1);
+  const sign = ex.charAt(0);
+  const digits = ex.slice(1).padStart(2, '0');
+  return neg + mant + 'e' + sign + digits;
+}
+function fmtF18(v){ /* %.18f（本工具只用于 0 与单位阵 1） */
+  return v.toFixed(18);
+}
+
+/* ---- 显示用格式化 ---- */
+function fmtNum(v){
+  if (v == null || !isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a !== 0 && (a < 1e-4 || a >= 1e7)) return v.toExponential(3);
+  return String(parseFloat(v.toPrecision(5)));
+}
+function fmtM(v){ return v == null || !isFinite(v) ? '—' : fmtNum(v) + ' m'; }
+function fmtKm(v){
+  if (v == null || !isFinite(v)) return '—';
+  return v >= 10000 ? fmtNum(v / 1e3) + ' km' : fmtNum(v) + ' m';
+}
+function fmtMm(v){ return v == null || !isFinite(v) ? '—' : fmtNum(v / 1e-3) + ' mm'; }
+function fmtDeg(v){ return v == null || !isFinite(v) ? '—' : fmtNum(v / DEG) + '°'; }
+function fmtUrad(v){ return v == null || !isFinite(v) ? '—' : fmtNum(v * 1e6) + ' μrad'; }
+
+/* ---- 光学 / 轨道闭包：GSD = p·H/f，缺谁补谁（SI：m） ---- */
+function resolveOptics(inp){
+  const out = {p: inp.p, f: inp.f, H: inp.H, GSD: inp.GSD, derived: []};
+  for (let r = 0; r < 3; r++){
+    if (out.GSD == null && out.p != null && out.f != null && out.H != null){
+      out.GSD = out.p * out.H / out.f; out.derived.push('GSD'); }
+    if (out.p == null && out.GSD != null && out.f != null && out.H != null){
+      out.p = out.GSD * out.f / out.H; out.derived.push('p'); }
+    if (out.f == null && out.GSD != null && out.p != null && out.H != null){
+      out.f = out.p * out.H / out.GSD; out.derived.push('f'); }
+    if (out.H == null && out.GSD != null && out.p != null && out.f != null){
+      out.H = out.GSD * out.f / out.p; out.derived.push('H'); }
+  }
+  return out;
+}
+
+/* ---- CCD 原点文本解析 ----
+   每行 `片号 x y`（TAB/空格/逗号/分号分隔）；缺片号列则 `x y` 按行序自动编号；
+   首个非空行首字段非数值视为表头（如 `ccd x y`）；# 与 // 为注释。
+   unitFactor：坐标单位 → SI（mm=1e-3）。返回 {chips:[{id,x0,y0(SI m)}], warnings} */
+const NUM_TOKEN = /^[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?$/;
+function parseOriginText(text, unitFactor){
+  const res = {chips: [], warnings: []};
+  let s = String(text == null ? '' : text);
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+  const lines = s.split(/\r?\n/);
+  const seen = Object.create(null);
+  let auto = 0;
+  for (let i = 0; i < lines.length; i++){
+    const ln = lines[i].trim();
+    if (!ln || ln.charAt(0) === '#' || ln.startsWith('//')) continue;
+    const f = ln.split(/[\s,;]+/);
+    if (!NUM_TOKEN.test(f[0])){
+      if (res.chips.length === 0) continue;          // 表头行（首字段非数值）
+      res.warnings.push(`第 ${i + 1} 行无法解析，已忽略：${ln}`);
+      continue;
+    }
+    let id, xs, ys;
+    if (NUM_TOKEN.test(f[1]) && NUM_TOKEN.test(f[2])){ id = parseFloat(f[0]); xs = f[1]; ys = f[2]; }
+    else if (f.length === 2 && NUM_TOKEN.test(f[1])){ id = ++auto; xs = f[0]; ys = f[1]; }
+    else { res.warnings.push(`第 ${i + 1} 行字段不足或非数值，已忽略：${ln}`); continue; }
+    res.chips.push({id, x0: parseFloat(xs) * unitFactor, y0: parseFloat(ys) * unitFactor});
+    if (seen[id] != null)
+      res.warnings.push(`片号 ${id} 重复（第 ${seen[id] + 1} 片之后再次出现，按行序保留）`);
+    else seen[id] = res.chips.length - 1;
+  }
+  return res;
+}
+
+/* ---- 几何与系数块生成 ----
+   cfg = {B, W, H, slope(p/f), f, order:'chip'|'band', chips:[{id,x0,y0(SI)}]}
+   理想模型：tanX(x,y) = x0/f + s·x，tanY(x,y) = y0/f + s·y（s = p/f）
+   系数序（二元 3 次 10 项）：1, x, y, x², xy, y², x³, x²y, xy², y³ */
+function buildGeometry(cfg){
+  const err = [];
+  const B = cfg.B, W = cfg.W, H = cfg.H;
+  if (!Number.isInteger(B) || B < 1) err.push('波段数 B 须为正整数');
+  if (!Number.isInteger(W) || W < 1) err.push('每片探元数 width W 须为正整数');
+  if (!Number.isInteger(H) || H < 1) err.push('每片探元数 height H 须为正整数');
+  if (!(cfg.slope > 0)) err.push('像元角步长 p/f 不可用（焦距/探元尺寸未定）');
+  if (!(cfg.f > 0)) err.push('焦距 f 不可用');
+  const chips = cfg.chips;
+  if (!Array.isArray(chips) || chips.length === 0) err.push('CCD 原点为空（请读取原点文本文件或直接粘贴）');
+  else if (!chips.every(c => isFinite(c.x0) && isFinite(c.y0))) err.push('存在原点坐标无效的 CCD 片');
+  if (err.length) return {errors: err};
+
+  const s = cfg.slope, f = cfg.f, p = s * f;
+  const N = chips.length;
+  const Wp = W * p, Hp = H * p;                       // 单片物理 footprint（含全像元阵列）
+
+  const pad0 = () => new Array(N_TERMS).fill(0);
+  const physical = [];
+  for (let i = 1; i <= N; i++) for (let b = 1; b <= B; b++) physical.push({i, b});
+  physical.sort(cfg.order === 'band'
+    ? (q, r) => q.b - r.b || q.i - r.i   // 波段优先：b 外层、i 内层
+    : (q, r) => q.i - r.i || q.b - r.b); // 片优先：i 外层、b 内层
+  const blocks = physical.map(({i, b}) => {
+    const c = chips[i - 1];
+    const cx = pad0(), cy = pad0();
+    cx[0] = c.x0 / f; cx[1] = s;                       // c0 = x0/f，x 一次项 = p/f
+    cy[0] = c.y0 / f; cy[2] = s;                       // c0 = y0/f，y 一次项 = p/f
+    return {kind: 'phys', width: W, height: H, i, b, x0: c.x0, y0: c.y0, cx, cy,
+            label: `第${i}片·第${b}波段`};
+  });
+
+  /* 虚拟整帧（第 0 块）：全焦面外接框；c0 = 各片原点最小值（gf4b-VIS.coef 实例口径）
+     width = ⌈(max x0 − min x0)/p + W⌉（ε 防浮点把整数跨大 1），height 同理 */
+  const minX0 = Math.min.apply(null, chips.map(c => c.x0));
+  const maxX0 = Math.max.apply(null, chips.map(c => c.x0));
+  const minY0 = Math.min.apply(null, chips.map(c => c.y0));
+  const maxY0 = Math.max.apply(null, chips.map(c => c.y0));
+  const Vw = Math.ceil((maxX0 - minX0) / p + W - 1e-6);
+  const Vh = Math.ceil((maxY0 - minY0) / p + H - 1e-6);
+  const vcx = pad0(), vcy = pad0();
+  vcx[0] = minX0 / f; vcx[1] = s;
+  vcy[0] = minY0 / f; vcy[2] = s;
+  blocks.unshift({kind: 'virtual', width: Vw, height: Vh, i: 0, b: 0, x0: minX0, y0: minY0,
+                  cx: vcx, cy: vcy, label: '虚拟整帧（第0块，焦面外接框）'});
+
+  /* 各片 tan 范围与最远角点 */
+  const chipInfo = chips.map((c, k) => {
+    const tx0 = c.x0 / f, tx1 = (c.x0 + (W - 1) * p) / f;
+    const ty0 = c.y0 / f, ty1 = (c.y0 + (H - 1) * p) / f;
+    let corner = 0;
+    for (const tx of [tx0, tx1]) for (const ty of [ty0, ty1])
+      corner = Math.max(corner, Math.hypot(tx, ty));
+    return {id: c.id, x0: c.x0, y0: c.y0, tx0, tx1, ty0, ty1, corner};
+  });
+
+  /* 片间 2D 搭接对（footprint 相交） */
+  const overlapPairs = [];
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++){
+    const dx = Math.abs(chips[i].x0 - chips[j].x0), dy = Math.abs(chips[i].y0 - chips[j].y0);
+    if (dx < Wp && dy < Hp)
+      overlapPairs.push({i: i + 1, j: j + 1, ox: W - dx / p, oy: H - dy / p});
+  }
+
+  /* x / y 投影区间并集 → 覆盖间隙（SI m） */
+  const unionGaps = intervals => {
+    const iv = intervals.slice().sort((a, b) => a[0] - b[0]);
+    let total = 0, max = 0, cur = iv[0][0];
+    for (const [a, b] of iv){
+      if (a > cur){ const g = a - cur; total += g; if (g > max) max = g; }
+      if (b > cur) cur = b;
+    }
+    return {total, max};
+  };
+  const gapX = unionGaps(chips.map(c => [c.x0, c.x0 + Wp]));
+  const gapY = unionGaps(chips.map(c => [c.y0, c.y0 + Hp]));
+
+  /* 视场 / 角点 / 中心偏移 */
+  const tanXR = [minX0 / f, (maxX0 + (W - 1) * p) / f];
+  const tanYR = [minY0 / f, (maxY0 + (H - 1) * p) / f];
+  const fovX = Math.atan(tanXR[1]) - Math.atan(tanXR[0]);
+  const fovY = Math.atan(tanYR[1]) - Math.atan(tanYR[0]);
+  const nrm = (tx, ty) => Math.sqrt(tx * tx + ty * ty + 1);
+  const dot = tanXR[0] * tanXR[1] + tanYR[0] * tanYR[1] + 1;
+  const fovDiag = Math.acos(Math.min(1, dot / (nrm(tanXR[0], tanYR[0]) * nrm(tanXR[1], tanYR[1]))));
+  let cornerTan = 0;
+  for (const tx of tanXR) for (const ty of tanYR) cornerTan = Math.max(cornerTan, Math.hypot(tx, ty));
+
+  return {errors: [], slope: s, p, f, N, W, H, Wp, Hp, Vw, Vh, blocks, chipInfo,
+          fp: {minX: minX0, maxX: maxX0 + Wp, minY: minY0, maxY: maxY0 + Hp},
+          tanXR, tanYR, fovX, fovY, fovDiag, cornerTan,
+          centerOff: {x: (minX0 + maxX0 + Wp) / 2, y: (minY0 + maxY0 + Hp) / 2},
+          overlapPairs, gapX, gapY};
+}
+
+/* ---- .coef 文本（gf4b-VIS 格式：CRLF、无 BOM、%.18e 双空格、angleBiasR %.18f） ---- */
+function buildCoefText(B, N, blocks){
+  const L = [
+    'Type=Frame',
+    `CamPoly=${CAM_POLY}`,
+    `bandCount=${B}`,
+    `sensorCount=${N}`,
+    `angleBiasRoll=${fmtF18(0)}`,
+    `angleBiasPitch=${fmtF18(0)}`,
+    `angleBiasYaw=${fmtF18(0)}`,
+    'angleBiasR:' + [[1, 0, 0], [0, 1, 0], [0, 0, 1]]      // 3×3 行优先单位阵：行内单空格、行组间两空格
+                    .map(r => r.map(fmtF18).join(' ')).join('  '),
+  ];
+  for (const q of blocks){
+    L.push(`width= ${q.width}`);
+    L.push(`height= ${q.height}`);
+    L.push('lookAngleX: ' + q.cx.map(fmtE18).join('  '));
+    L.push('lookAngleY: ' + q.cy.map(fmtE18).join('  '));
+  }
+  return L.join('\r\n') + '\r\n';
+}
+
+/* ---- 一致性校验与物理约束 ----
+   opt = resolveOptics 结果；cfg 含 {B,W,H,tol,R,originN,originWarnings} */
+function buildChecks(opt, geo, cfg){
+  const C = [];
+  const tol = cfg.tol;
+  // ① 探测器/格式参数
+  const bad = [];
+  if (!Number.isInteger(cfg.B) || cfg.B < 1) bad.push('B');
+  if (!Number.isInteger(cfg.W) || cfg.W < 1) bad.push('W(width)');
+  if (!Number.isInteger(cfg.H) || cfg.H < 1) bad.push('H(height)');
+  if (bad.length)
+    C.push({name: '探测器/格式参数', status: 'bad', detail: '以下参数无效：' + bad.join('、') + '（须为正整数）'});
+  else
+    C.push({name: '探测器/格式参数', status: 'ok',
+      detail: `B=${cfg.B}、W=${cfg.W}、H=${cfg.H}；Type=Frame、CamPoly=3（二元3次，每行 10 系数）` +
+        (geo ? `；N=${geo.N}，块数 = 1+N×B = ${1 + geo.N * cfg.B}` : '')});
+  // ② CCD 原点
+  if (!cfg.originN)
+    C.push({name: 'CCD 原点文件', status: 'bad', detail: '尚未解析到任何 CCD 原点（读取 kjg.txt 格式文件或直接粘贴）'});
+  else if (cfg.originWarnings && cfg.originWarnings.length)
+    C.push({name: 'CCD 原点文件', status: 'info',
+      detail: `解析出 ${cfg.originN} 片；${cfg.originWarnings.length} 行被忽略，首个：${cfg.originWarnings[0]}`});
+  else
+    C.push({name: 'CCD 原点文件', status: 'ok', detail: `解析出 ${cfg.originN} 片（sensorCount = ${cfg.originN}，片序 = 文件行序）`});
+  // ③ GSD 恒等式
+  if (opt.p != null && opt.f != null && opt.H != null && opt.GSD != null &&
+      opt.derived.length === 0){
+    const exp = opt.p * opt.H / opt.f;
+    const rel = Math.abs(exp - opt.GSD) / Math.max(Math.abs(exp), Math.abs(opt.GSD), 1e-30);
+    C.push({name: 'GSD = p·H/f', status: rel <= tol ? 'ok' : 'bad',
+      detail: `公式值 ${fmtM(exp)} vs 输入 ${fmtM(opt.GSD)}，偏差 ${(rel * 100).toFixed(2)}%`});
+  } else if (opt.p != null && opt.f != null && opt.H == null && opt.GSD == null){
+    C.push({name: 'GSD = p·H/f', status: 'info', detail: '轨道高度与 GSD 均未给：跳过 GSD 校验与幅宽计算（系数生成不受影响）'});
+  } else if (opt.derived.length){
+    C.push({name: 'GSD = p·H/f', status: 'info', detail: '以下量由恒等式自动推导补全：' + opt.derived.join('、') + '（该恒等式不再重复校验）'});
+  } else if (opt.p == null || opt.f == null){
+    C.push({name: '焦距 / 探元尺寸', status: 'bad', detail: 'p 与 f 至少各有一种途径确定（直接输入或由 GSD·H 反推），否则无法生成系数'});
+  }
+  // ④ 片间 2D 搭接
+  if (geo){
+    if (geo.overlapPairs.length){
+      const mo = geo.overlapPairs.reduce((a, q) => ({ox: Math.max(a.ox, q.ox), oy: Math.max(a.oy, q.oy)}), {ox: 0, oy: 0});
+      const gnd = (opt.GSD != null && isFinite(opt.GSD))
+        ? `（地面 ${fmtM(mo.ox * opt.GSD)} × ${fmtM(mo.oy * opt.GSD)}）` : '';
+      C.push({name: '片间 2D 搭接', status: 'ok',
+        detail: `${geo.overlapPairs.length} 对片 footprint 相交（拼接搭接），最大 x 向 ${fmtNum(mo.ox)} × y 向 ${fmtNum(mo.oy)} 像元${gnd}`});
+    } else {
+      C.push({name: '片间 2D 搭接', status: 'info', detail: '片间无任何 2D 搭接；若各片应拼接成整幅面阵，请检查原点与单片尺寸'});
+    }
+  }
+  // ⑤ 投影覆盖间隙
+  if (geo){
+    const px = v => v / geo.p;
+    if (geo.gapX.total <= 0 && geo.gapY.total <= 0){
+      C.push({name: '投影覆盖间隙', status: 'ok', detail: 'x、y 投影方向均无间隙（全覆盖；不排除棋盘形 2D 空洞）'});
+    } else {
+      const parts = [];
+      if (geo.gapX.total > 0) parts.push(`x 向合计 ${fmtNum(px(geo.gapX.total))} 像元 / ${fmtMm(geo.gapX.total)}（最大 ${fmtMm(geo.gapX.max)}）`);
+      if (geo.gapY.total > 0) parts.push(`y 向合计 ${fmtNum(px(geo.gapY.total))} 像元 / ${fmtMm(geo.gapY.total)}（最大 ${fmtMm(geo.gapY.max)}）`);
+      C.push({name: '投影覆盖间隙', status: 'info', detail: '存在未覆盖间隙：' + parts.join('；')});
+    }
+  }
+  // ⑥ 边缘视线在地平线内
+  if (geo && opt.H != null && cfg.R != null && cfg.R > 0){
+    const edge = Math.atan(geo.cornerTan);
+    const horizon = Math.asin(cfg.R / (cfg.R + opt.H));
+    C.push({name: '边缘离轴角 ≤ 地平线角', status: edge <= horizon ? 'ok' : 'bad',
+      detail: `最远角点离轴角 ${fmtDeg(edge)} ${edge <= horizon ? '≤' : '>'} 地平线角 ${fmtDeg(horizon)}（arcsin(R/(R+H))）`});
+  }
+  // ⑦ 多波段共用原点
+  if (cfg.B > 1)
+    C.push({name: '多波段块', status: 'info', detail: '各波段共用同一组 CCD 原点与系数（如各波段焦面布置不同，请分别生成文件）'});
+  return C;
+}
+
+/* ---- 推导汇总 ---- */
+function buildDerived(opt, geo){
+  const R = [];
+  if (geo){
+    R.push(['sensorCount N（= 原点行数）', geo.N + ' 片']);
+    R.push(['像元角步长 p/f（lookAngleX x 项 = lookAngleY y 项）', fmtUrad(geo.slope)]);
+    R.push(['单片探元 W×H', `${geo.W}×${geo.H} 像元`]);
+    R.push(['单片物理尺寸 W·p × H·p', `${fmtMm(geo.Wp)} × ${fmtMm(geo.Hp)}`]);
+    R.push(['虚拟整帧（第0块）= 外接框', `${geo.Vw}×${geo.Vh} 像元`]);
+    R.push(['焦面外接框', `${fmtMm(geo.fp.maxX - geo.fp.minX)} × ${fmtMm(geo.fp.maxY - geo.fp.minY)}`]);
+    R.push(['焦面中心相对主点偏移', `(${fmtMm(geo.centerOff.x)}, ${fmtMm(geo.centerOff.y)})`]);
+    R.push(['X 向全视场角（width 方向）', fmtDeg(geo.fovX)]);
+    R.push(['Y 向全视场角（height 方向）', fmtDeg(geo.fovY)]);
+    R.push(['对角视场角（两对角角点视线夹角）', fmtDeg(geo.fovDiag)]);
+    R.push(['边缘离轴角（最远角点）', fmtDeg(Math.atan(geo.cornerTan))]);
+    if (opt.GSD != null){
+      R.push(['星下点 GSD（平面）= p·H/f', fmtM(opt.GSD)]);
+      R.push(['幅宽 × 幅高（平面）= Vw×GSD × Vh×GSD',
+        opt.H != null ? `${fmtKm(geo.Vw * opt.GSD)} × ${fmtKm(geo.Vh * opt.GSD)}` : '—']);
+    }
+  }
+  return R;
+}
+
+/* ============ 参数文本文件（TXT）读写 ============
+   行格式：参数ID = 数值 [单位]。带单位按该单位换算；无单位按该参数默认单位。
+   元参数行：originUnit / blockOrder / tolerance / filename。
+   oN 为第 N 片 CCD 原点 `x y`（单位随 originUnit）；Horb 为轨道高度（H 留给片高）。
+   # 开头与行内 # 之后为注释。 */
+const TXT_DIST = [['mm', 1e-3], ['μm', 1e-6], ['cm', 1e-2], ['m', 1], ['km', 1e3]];
+const ORIGIN_UNITS = [['mm', 1e-3], ['μm', 1e-6]];
+const TXT_PARAMS = {
+  B:{name:'波段数', int:1}, W:{name:'每片探元数width', int:1}, H:{name:'每片探元数height', int:1},
+  f:{name:'焦距', u:TXT_DIST, du:0}, p:{name:'探元尺寸', u:TXT_DIST, du:1},
+  Horb:{name:'轨道高度', u:TXT_DIST, du:4}, GSD:{name:'GSD', u:TXT_DIST, du:3},
+  R:{name:'地球半径', u:TXT_DIST, du:4},
+};
+
+function parseParamText(text){
+  const res = {values: {}, origins: [], meta: {}, warnings: []};
+  let s = String(text == null ? '' : text);
+  if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
+  const lines = s.split(/\r?\n/);
+  const origUnit = () => { // 两遍：先扫元参数确定原点单位
+    for (const ln of lines){
+      const m = ln.split('#')[0].trim().match(/^originUnit\s*=\s*(\S+)$/);
+      if (m && ORIGIN_UNITS.some(u => u[0] === m[1])) return ORIGIN_UNITS.find(u => u[0] === m[1])[1];
+    }
+    return ORIGIN_UNITS[0][1];
+  };
+  const oFac = origUnit();
+  for (let i = 0; i < lines.length; i++){
+    const body = lines[i].split('#')[0].trim();
+    if (!body) continue;
+    const m = body.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
+    if (!m){ res.warnings.push(`第 ${i+1} 行无法解析，已忽略：${body}`); continue; }
+    const key = m[1], rhs = m[2].trim();
+    if (key === 'originUnit'){
+      if (ORIGIN_UNITS.some(u => u[0] === rhs)) res.meta.originUnit = rhs;
+      else res.warnings.push(`第 ${i+1} 行 originUnit 取值无效（mm/μm）：${rhs}`);
+      continue;
+    }
+    if (key === 'blockOrder'){
+      if (rhs === 'chip' || rhs === 'band') res.meta.blockOrder = rhs;
+      else res.warnings.push(`第 ${i+1} 行 blockOrder 取值无效（chip/band）：${rhs}`);
+      continue;
+    }
+    if (key === 'tolerance' || key === 'tol'){
+      const t = parseFloat(rhs);
+      if (isFinite(t) && t > 0 && t <= 1) res.meta.tol = t;
+      else res.warnings.push(`第 ${i+1} 行 tolerance 取值无效：${rhs}`);
+      continue;
+    }
+    if (key === 'filename'){
+      res.meta.filename = rhs.replace(/^"|"$/g, '');
+      continue;
+    }
+    const om = key.match(/^o(\d+)$/);
+    if (om){
+      const pm = rhs.match(/^(\S+)\s+(\S+)$/);
+      const x = pm && parseFloat(pm[1]), y = pm && parseFloat(pm[2]);
+      if (!pm || !NUM_TOKEN.test(pm[1]) || !NUM_TOKEN.test(pm[2])){
+        res.warnings.push(`第 ${i+1} 行 oN 原点须为 \"x y\" 两个数：${body}`); continue;
+      }
+      res.origins.push({idx: +om[1], x0: x * oFac, y0: y * oFac});
+      continue;
+    }
+    const P = TXT_PARAMS[key];
+    if (!P){ res.warnings.push(`第 ${i+1} 行未知参数，已忽略：${key}`); continue; }
+    const vm = rhs.match(/^(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*(\S*)$/);
+    if (!vm || !isFinite(parseFloat(vm[1]))){
+      res.warnings.push(`第 ${i+1} 行数值无法识别，已忽略：${body}`); continue;
+    }
+    const num = parseFloat(vm[1]);
+    if (P.int){ res.values[key] = num; continue; }
+    if (vm[2]){
+      const u = P.u.find(q => q[0] === vm[2]);
+      if (!u){ res.warnings.push(`第 ${i+1} 行单位 "${vm[2]}" 不适用于 ${key}，该行已忽略`); continue; }
+      res.values[key] = num * u[1];
+    } else {
+      res.values[key] = num * P.u[P.du][1]; // 无单位 = 该参数默认单位
+    }
+  }
+  return res;
+}
+
+function fmtFull(v){ // 文件读写用：12 位有效数字避免往返失真
+  if (v == null || !isFinite(v)) return '';
+  return String(parseFloat(v.toPrecision(12)));
+}
+
+function paramsToText(state){ // state：{values(SI 或整数), origins:[{idx,x0,y0(SI)}], meta}
+  const now = new Date(), pad = n => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  const ou = ORIGIN_UNITS.find(u => u[0] === (state.meta.originUnit || 'mm'));
+  const L = [
+    '# 面阵相机参数文件（frame.html）',
+    `# 工具版本: ${VERSION}    保存时间: ${stamp}`,
+    '# 行格式: 参数ID = 数值 [单位]；oN 为第 N 片 CCD 原点 "x y"（单位随 originUnit）；Horb 为轨道高度；# 后为注释',
+    '',
+    `originUnit = ${ou[0]} # 原点坐标单位 mm / μm`,
+    `blockOrder = ${state.meta.blockOrder || 'chip'} # chip 片优先 / band 波段优先`,
+    `tolerance = ${state.meta.tol != null ? state.meta.tol : 0.02}`,
+    state.meta.filename ? `filename = ${state.meta.filename}` : '',
+  ];
+  for (const k of ['B','W','H'])
+    if (state.values[k] != null) L.push(`${k} = ${state.values[k]}`);
+  for (const k of ['f','p','Horb','GSD','R'])
+    if (state.values[k] != null){
+      const u = TXT_PARAMS[k].u[TXT_PARAMS[k].du];
+      L.push(`${k} = ${fmtFull(state.values[k] / u[1])} ${u[0]}`);
+    }
+  for (const o of (state.origins || []))
+    L.push(`o${o.idx} = ${fmtFull(o.x0 / ou[1])} ${fmtFull(o.y0 / ou[1])}`);
+  return L.filter(x => x !== '').join('\r\n') + '\r\n';
+}
+
+if (typeof module !== 'undefined' && module.exports){
+  module.exports = {VERSION, DEG, CAM_POLY, N_TERMS, fmtE18, fmtF18, fmtNum, fmtM, fmtKm, fmtMm,
+                    fmtDeg, fmtUrad, resolveOptics, NUM_TOKEN, parseOriginText, ORIGIN_UNITS,
+                    buildGeometry, buildCoefText, buildChecks, buildDerived,
+                    TXT_PARAMS, parseParamText, paramsToText, fmtFull};
+}
+</script>
+
+<script>
+'use strict';
+/* ============ DOM：表单、事件、渲染 ============ */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+$('#ver').textContent = VERSION;
+
+const DEFAULT_ORIGINS = 'ccd\tx\ty\n' +
+  '1\t-225.258\t-38.256\n2\t-206.525\t8.744\n3\t-187.792\t-38.256\n4\t-169.059\t8.744\n' +
+  '5\t-150.326\t-38.256\n6\t-131.593\t8.744\n7\t-112.86\t-38.256\n8\t-94.127\t8.744\n' +
+  '9\t-75.394\t-38.256\n10\t-56.661\t8.744\n11\t-37.928\t-38.256\n12\t-19.195\t8.744\n' +
+  '13\t-0.462\t-38.256\n14\t18.271\t8.744\n15\t37.004\t-38.256\n16\t55.737\t8.744\n' +
+  '17\t74.47\t-38.256\n18\t93.203\t8.744\n19\t111.936\t-38.256\n20\t130.669\t8.744\n' +
+  '21\t149.402\t-38.256\n22\t168.135\t8.744\n23\t186.868\t-38.256\n24\t205.601\t8.744\n';
+
+const state = {
+  tol: 0.02,
+  order: 'chip',       // chip / band
+  originUnit: 'mm',    // 原点坐标单位
+};
+let coreOut = {opt: null, geo: null, text: ''};
+
+function originFactor(){
+  const u = ORIGIN_UNITS.find(q => q[0] === state.originUnit);
+  return u ? u[1] : 1e-3;
+}
+
+/* ---------- 原点文件读取 ---------- */
+$('#btnOrigFile').addEventListener('click', () => $('#fileOrig').click());
+$('#fileOrig').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let text;
+  try{ text = await file.text(); }
+  catch(err){ toast('读取文件失败：' + err.message, true); return; }
+  $('#inOrigins').value = text.replace(/\r\n/g, '\n');
+  $('#origFileHint').textContent = '已读取 ' + file.name;
+  recalc();
+  const r = parseOriginText(text, originFactor());
+  if (r.chips.length) toast('已读取 ' + file.name + '：解析出 ' + r.chips.length + ' 片 CCD 原点');
+  else toast('已读取 ' + file.name + '，但未解析到任何原点行', true);
+});
+
+/* ---------- 收集与计算 ---------- */
+function numVal(id, unitId){
+  const el = $(('#' + id));
+  const v = parseFloat(el.value);
+  if (el.value.trim() === '' || !isFinite(v)) return null;
+  if (!unitId) return v;
+  const u = $('#' + unitId).value;
+  const F = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  return v * F[u];
+}
+function intVal(id){
+  const v = parseInt($(('#' + id)).value, 10);
+  return Number.isInteger(v) ? v : NaN;
+}
+
+function recalc(){
+  const B = intVal('in_B'), W = intVal('in_W'), H = intVal('in_H');
+  const R = numVal('in_R', 'un_R');
+
+  const opt = resolveOptics({f: numVal('in_f', 'un_f'), p: numVal('in_p', 'un_p'),
+                             H: numVal('in_Horb', 'un_Horb'), GSD: numVal('in_GSD', 'un_GSD')});
+  const slope = (opt.p != null && opt.f != null && opt.f > 0) ? opt.p / opt.f : null;
+  coreOut.opt = opt;
+
+  const origin = parseOriginText($('#inOrigins').value, originFactor());
+
+  let geo = null, text = '', geoErrs = [];
+  if (slope != null){
+    const g = buildGeometry({B, W, H, slope, f: opt.f, order: state.order,
+                             chips: origin.chips});
+    geoErrs = g.errors;
+    if (!geoErrs.length){
+      geo = g;
+      text = buildCoefText(B, geo.N, geo.blocks);
+    }
+  } else if (origin.chips.length === 0 && $('#inOrigins').value.trim() === ''){
+    geoErrs = [];   // 尚未开始输入，不出错横幅
+  }
+
+  const cfg = {B, W, H, tol: state.tol, R,
+               originN: origin.chips.length, originWarnings: origin.warnings};
+  const checks = buildChecks(opt, geo, cfg);
+  if (geoErrs.length)
+    checks.unshift({name: '系数生成前置条件', status: 'bad', detail: geoErrs.join('；')});
+  coreOut.geo = geo; coreOut.text = text;
+
+  renderOrigInfo(origin, geo);
+  renderDerived(opt, geo);
+  renderSum(opt, geo);
+  renderChecks(checks);
+  renderFocal(geo);
+  renderLay(geo);
+  renderPreview(text, geo, cfg);
+  renderBanner(checks);
+  save();
+}
+
+/* ---------- 原点解析提示 ---------- */
+function renderOrigInfo(origin, geo){
+  const el = $('#dvOrig');
+  if (!origin.chips.length){
+    el.textContent = origin.warnings.length ? '未解析到原点；' + origin.warnings[0] : '';
+    return;
+  }
+  const fac = originFactor();
+  const xs = origin.chips.map(c => c.x0), ys = origin.chips.map(c => c.y0);
+  el.textContent = `解析出 ${origin.chips.length} 片；x0 ∈ [${fmtNum(Math.min.apply(null, xs) / fac)}, ${fmtNum(Math.max.apply(null, xs) / fac)}]、` +
+    `y0 ∈ [${fmtNum(Math.min.apply(null, ys) / fac)}, ${fmtNum(Math.max.apply(null, ys) / fac)}] ${state.originUnit}` +
+    (origin.warnings.length ? `；${origin.warnings.length} 行忽略` : '');
+}
+
+/* ---------- 焦面布置示意（垂直轴 x/width/lookAngleX 向下为正、水平轴 y/height/lookAngleY 向左为正，
+   真实比例；数据/图像口径 width 向右、height 向下，与焦面视图相差 90°（由 lookAngle 正斜率关联）；
+   固定高度容器内滚轮缩放（以光标为中心）/ 拖动平移 / ＋−适配按钮，文字反向缩放恒定大小） ---------- */
+const PALETTE = ['#2059a8', '#c96a11', '#167a48', '#7a3fa0', '#b3261e', '#0e7490', '#8a6d00', '#546e7a'];
+const focalView = {z: 1, tx: 0, ty: 0};     // 用户视图状态（z 缩放、tx/ty 平移，单位 px）
+const FZ_MIN = 0.2, FZ_MAX = 50;
+
+function renderFocal(geo){
+  const wrap = $('#focalWrap'), svg = $('#focalSvg');
+  if (!geo){
+    svg.innerHTML = '';
+    svg.removeAttribute('viewBox');
+    $('#focalEmpty').style.display = '';
+    $('#fzPct').textContent = '—';
+    return;
+  }
+  $('#focalEmpty').style.display = 'none';
+  const W = wrap.clientWidth || 760, Hc = wrap.clientHeight || 540;
+  const fac = originFactor();
+  const Xs = geo.fp.maxX - geo.fp.minX, Ys = geo.fp.maxY - geo.fp.minY;   // SI m
+  const mT = 26, mL = 34, mR = 26, mB = 26;                              // 基础坐标边距
+  const k = Math.max(1e-9, Math.min((W - mL - mR) / Ys, (Hc - mT - mB) / Xs));
+  const innerW = Ys * k, innerH = Xs * k;
+  const ox = mL + (W - mL - mR - innerW) / 2, oy = mT + (Hc - mT - mB - innerH) / 2;
+  const sx = y => ox + (geo.fp.maxY - y) * k;   // y（height/tanY）大 → 屏幕左（lookAngleY 向左为正）
+  const sy = x => oy + (x - geo.fp.minX) * k;   // x（width/tanX）大 → 屏幕下（lookAngleX 向下为正）
+
+  const z = focalView.z, inv = 1 / z;           // 文字/线宽反缩放：屏幕上恒定大小
+  let h = `<g transform="translate(${focalView.tx} ${focalView.ty}) scale(${z})" font-family="Segoe UI,Microsoft YaHei,sans-serif">`;
+  // 虚拟整帧外接框
+  h += `<g><title>虚拟整帧（第0块）：${geo.Vw}×${geo.Vh} 像元（焦面外接框）</title>` +
+       `<rect x="${sx(geo.fp.maxY).toFixed(2)}" y="${sy(geo.fp.minX).toFixed(2)}" width="${innerW.toFixed(2)}" height="${innerH.toFixed(2)}" fill="none" stroke="#68788a" stroke-width="${(1.4 * inv).toFixed(3)}" stroke-dasharray="${(6 * inv).toFixed(2)} ${(4 * inv).toFixed(2)}"/></g>`;
+  // 主点 (0,0)
+  const px = sx(0), py = sy(0);
+  h += `<g><line x1="${(px - 7 * inv).toFixed(2)}" y1="${py.toFixed(2)}" x2="${(px + 7 * inv).toFixed(2)}" y2="${py.toFixed(2)}" stroke="#b3261e" stroke-width="${inv.toFixed(3)}"/>` +
+       `<line x1="${px.toFixed(2)}" y1="${(py - 7 * inv).toFixed(2)}" x2="${px.toFixed(2)}" y2="${(py + 7 * inv).toFixed(2)}" stroke="#b3261e" stroke-width="${inv.toFixed(3)}"/>` +
+       `<text x="${(px + 9 * inv).toFixed(2)}" y="${(py - 6 * inv).toFixed(2)}" font-size="${(11 * inv).toFixed(2)}" fill="#b3261e">主点 (0,0)</text></g>`;
+  // 各片：矩形覆盖焦面 [x0, x0+Wp]×[y0, y0+Hp]；探元 (0,0)（= 原点，tanX/tanY 最小端）在右上角——
+  // width 序号向下增大（tanX 增大）、height 序号向左增大（tanY 增大）
+  for (let i = 0; i < geo.chipInfo.length; i++){
+    const c = geo.chipInfo[i], col = PALETTE[i % PALETTE.length];
+    const x = sx(c.y0 + geo.Hp), w = geo.Hp * k;   // 水平跨度为高向 H·p（右端即探元 (0,0) 一列）
+    const y = sy(c.x0), hh = geo.Wp * k;           // 垂直跨度为宽向 W·p
+    h += `<g><title>第${i + 1}片（ccd ${c.id}）：原点 (${fmtNum(c.x0 / fac)}, ${fmtNum(c.y0 / fac)}) ${state.originUnit}；` +
+         `tanX ${fmtNum(c.tx0)} → ${fmtNum(c.tx1)}；tanY ${fmtNum(c.ty0)} → ${fmtNum(c.ty1)}；最远角点离轴角 ${fmtDeg(Math.atan(c.corner))}</title>` +
+         `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${hh.toFixed(2)}" rx="${(2 * inv).toFixed(2)}" fill="${col}" fill-opacity="0.32" stroke="${col}" stroke-width="${(1.2 * inv).toFixed(3)}"/>` +
+         (w * z >= 26 && hh * z >= 15 ? `<text x="${(x + w / 2).toFixed(2)}" y="${(y + hh / 2 + 4 * inv).toFixed(2)}" text-anchor="middle" font-size="${(11 * inv).toFixed(2)}" fill="#1f2a36">${i + 1}</text>` : '') +
+         `</g>`;
+  }
+  h += '</g>';
+  svg.setAttribute('viewBox', `0 0 ${W} ${Hc}`);
+  svg.innerHTML = h;
+  $('#fzPct').textContent = Math.round(z * 100) + '%';
+}
+
+/* ---------- 缩放 / 平移控制 ---------- */
+function focalZoomAt(f, cx, cy){
+  const wrap = $('#focalWrap');
+  const W = wrap.clientWidth || 760, Hc = wrap.clientHeight || 540;
+  if (cx == null) cx = W / 2;
+  if (cy == null) cy = Hc / 2;
+  const z1 = Math.min(FZ_MAX, Math.max(FZ_MIN, focalView.z * f));
+  const s = z1 / focalView.z;
+  focalView.tx = cx - s * (cx - focalView.tx);   // 以 (cx, cy) 为不动点缩放
+  focalView.ty = cy - s * (cy - focalView.ty);
+  focalView.z = z1;
+  renderFocal(coreOut.geo);
+}
+$('#fzIn').addEventListener('click', () => focalZoomAt(1.3));
+$('#fzOut').addEventListener('click', () => focalZoomAt(1 / 1.3));
+$('#fzFit').addEventListener('click', () => {
+  focalView.z = 1; focalView.tx = 0; focalView.ty = 0;
+  renderFocal(coreOut.geo);
+});
+$('#focalWrap').addEventListener('wheel', e => {
+  if (!coreOut.geo) return;
+  e.preventDefault();
+  const r = $('#focalSvg').getBoundingClientRect();
+  focalZoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - r.left, e.clientY - r.top);
+}, {passive: false});
+(function focalDrag(){
+  const svg = $('#focalSvg');
+  let drag = null;
+  svg.addEventListener('pointerdown', e => {
+    if (!coreOut.geo) return;
+    drag = {x: e.clientX, y: e.clientY};
+    svg.classList.add('drag');
+    try{ svg.setPointerCapture(e.pointerId); }catch(err){}
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!drag) return;
+    focalView.tx += e.clientX - drag.x;
+    focalView.ty += e.clientY - drag.y;
+    drag = {x: e.clientX, y: e.clientY};
+    renderFocal(coreOut.geo);
+  });
+  const up = () => { drag = null; svg.classList.remove('drag'); };
+  svg.addEventListener('pointerup', up);
+  svg.addEventListener('pointercancel', up);
+})();
+window.addEventListener('resize', () => renderFocal(coreOut.geo));
+
+/* ---------- 渲染 ---------- */
+function renderDerived(opt, geo){
+  const d = (id, v, unit) => { const el = $(('#' + id));
+    el.textContent = (v == null) ? '' : '≈ ' + fmtNum(v / unit[1]) + ' ' + unit[0] + '（推导）'; };
+  const FU = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  d('dv_f', opt.f && opt.derived.includes('f') ? opt.f : null, [$('#un_f').value, FU[$('#un_f').value]]);
+  d('dv_p', opt.p && opt.derived.includes('p') ? opt.p : null, [$('#un_p').value, FU[$('#un_p').value]]);
+  d('dv_Horb', opt.H && opt.derived.includes('H') ? opt.H : null, [$('#un_Horb').value, FU[$('#un_Horb').value]]);
+  d('dv_GSD', opt.GSD && opt.derived.includes('GSD') ? opt.GSD : null, [$('#un_GSD').value, FU[$('#un_GSD').value]]);
+  $('#dv_W').textContent = geo ? `单片物理宽 = W·p = ${fmtMm(geo.Wp)}` : '';
+  $('#dv_H').textContent = geo ? `单片物理高 = H·p = ${fmtMm(geo.Hp)}` : '';
+}
+
+function renderSum(opt, geo){
+  const rows = buildDerived(opt, geo);
+  let h = '<table>';
+  for (const r of rows) h += `<tr><td>${r[0]}</td><td class="v">${r[1]}</td></tr>`;
+  $('#tblSum').innerHTML = h + '</table>';
+}
+
+function renderChecks(checks){
+  const icon = {ok: '✓', bad: '✗', info: '⚠'};
+  $('#lstChk').innerHTML = checks.length ? checks.map(c =>
+    `<div class="item ${c.status}"><span class="st">${icon[c.status]}</span>
+     <span class="nm">${c.name}</span><span class="dt">${c.detail}</span></div>`).join('')
+    : '<div class="item info"><span class="st">ℹ</span><span class="dt">参数不足</span></div>';
+}
+
+function renderLay(geo){
+  if (!geo){ $('#tblLay').innerHTML = '<div class="item info"><span class="st">ℹ</span><span class="dt">参数不足</span></div>'; return; }
+  const fac = originFactor();
+  let h = `<div class="item ok" style="margin-bottom:8px"><span class="st">▣</span><span class="nm">虚拟整帧（第0块）</span>` +
+    `<span class="dt">${geo.Vw}×${geo.Vh} 像元（外接框）；tanX ${fmtNum(geo.tanXR[0])} → ${fmtNum(geo.tanXR[1])}，` +
+    `tanY ${fmtNum(geo.tanYR[0])} → ${fmtNum(geo.tanYR[1])}</span></div>`;
+  h += '<table><tr class="grprow"><td colspan="6">各片布置（片序 = 原点文件行序）</td></tr>' +
+    '<tr><th>片号</th><th>ccd</th><th>原点 x₀</th><th>原点 y₀</th><th>tanX / tanY 范围</th><th>最远角点离轴角</th></tr>';
+  for (let i = 0; i < geo.chipInfo.length; i++){
+    const c = geo.chipInfo[i];
+    h += `<tr><td>第 ${i + 1} 片</td><td class="v">${c.id}</td>
+      <td class="v">${fmtNum(c.x0 / fac)} ${state.originUnit}</td><td class="v">${fmtNum(c.y0 / fac)} ${state.originUnit}</td>
+      <td class="v">${fmtNum(c.tx0)} → ${fmtNum(c.tx1)}<br>${fmtNum(c.ty0)} → ${fmtNum(c.ty1)}</td>
+      <td class="v">${fmtDeg(Math.atan(c.corner))}</td></tr>`;
+  }
+  h += '</table>';
+  $('#tblLay').innerHTML = h;
+}
+
+function renderPreview(text, geo, cfg){
+  const pre = $('#coefPre'), lg = $('#legend'), btn = $('#btnSave');
+  if (text){
+    pre.textContent = text;
+    const nBlk = 1 + geo.N * cfg.B;
+    const orderTxt = state.order === 'chip' ? '第1片·各波段 → 第2片·各波段 → …' : '第1波段·各片 → 第2波段·各片 → …';
+    lg.innerHTML = `Type=Frame、CamPoly=3（10 系数/行，双空格分隔）；块顺序（${state.order === 'chip' ? '片优先' : '波段优先'}）：虚拟整帧 → ${orderTxt}，共 <b>${nBlk}</b> 块；` +
+      `字节数 <b>${text.length}</b>（ASCII、CRLF、无 BOM）`;
+    btn.disabled = false;
+  } else {
+    pre.textContent = '（参数不足或存在错误，暂不能生成文件——见「一致性校验与物理约束」）';
+    lg.textContent = '';
+    btn.disabled = true;
+  }
+}
+
+function renderBanner(checks){
+  const b = $('#banner');
+  const nBad = checks.filter(c => c.status === 'bad').length;
+  const nInfo = checks.filter(c => c.status === 'info').length;
+  const anyInput = ['in_f', 'in_p', 'in_Horb', 'in_GSD'].some(id => $(('#' + id)).value.trim() !== '') ||
+                   $('#inOrigins').value.trim() !== '';
+  if (!anyInput){ b.className = ''; b.textContent = '请输入参数（左栏留空项将自动推导）……'; return; }
+  if (nBad){ b.className = 'bad'; b.textContent = `发现 ${nBad} 处问题，详见下方；文件暂不生成`; }
+  else { b.className = 'ok'; b.textContent = `参数自洽：${checks.length - nBad - nInfo} 项通过，${nInfo} 项提示；文件可保存`; }
+}
+
+/* ---------- .coef 下载 ---------- */
+$('#btnSave').addEventListener('click', () => {
+  if (!coreOut.text){ toast('当前无法生成 .coef 文件', true); return; }
+  let name = ($('#fnameEcho').value || 'frame.coef').trim() || 'frame.coef';
+  if (!/\.coef$/i.test(name)) name += '.coef';
+  const blob = new Blob([coreOut.text], {type: 'application/octet-stream'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('已保存 ' + name + '（' + coreOut.text.length + ' 字节，CRLF、无 BOM）');
+});
+
+/* ---------- 参数 TXT 读写 ---------- */
+function collectTxt(){
+  const values = {
+    B: intVal('in_B'), W: intVal('in_W'), H: intVal('in_H'),
+  };
+  for (const k of ['B','W','H']) if (!Number.isInteger(values[k])) values[k] = null;
+  const FU = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  for (const [k, id, un] of [['f','in_f','un_f'],['p','in_p','un_p'],['Horb','in_Horb','un_Horb'],
+                             ['GSD','in_GSD','un_GSD'],['R','in_R','un_R']]){
+    const el = $(('#' + id)); const v = parseFloat(el.value);
+    if (el.value.trim() !== '' && isFinite(v)) values[k] = v * FU[$('#' + un).value];
+  }
+  const origins = parseOriginText($('#inOrigins').value, originFactor()).chips
+    .map((c, i) => ({idx: i + 1, x0: c.x0, y0: c.y0}));
+  return {values, origins, meta: {originUnit: state.originUnit,
+    blockOrder: state.order, tol: state.tol, filename: $('#fnameEcho').value.trim()}};
+}
+$('#btnExportTxt').addEventListener('click', () => {
+  const t = collectTxt();
+  const cnt = Object.keys(t.values).length + t.origins.length;
+  if (!cnt){ toast('当前没有输入任何参数，无内容可保存', true); return; }
+  const ts = new Date(), pad = x => String(x).padStart(2, '0');
+  const fname = 'frame_params_' + ts.getFullYear() + pad(ts.getMonth() + 1) + pad(ts.getDate())
+    + '-' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds()) + '.txt';
+  const blob = new Blob([String.fromCharCode(0xFEFF) + paramsToText(t)], {type: 'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast('已保存 ' + fname + '（' + cnt + ' 个参数/原点，UTF-8 带 BOM）');
+});
+$('#btnImportTxt').addEventListener('click', () => $('#fileTxt').click());
+$('#fileTxt').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  let text;
+  try{ text = await file.text(); }
+  catch(err){ toast('读取文件失败：' + err.message, true); return; }
+  const r = parseParamText(text);
+  const v = r.values, meta = r.meta;
+  if (v.B != null) $('#in_B').value = v.B;
+  if (v.W != null) $('#in_W').value = v.W;
+  if (v.H != null) $('#in_H').value = v.H;
+  const FU = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  const setSI = (id, un, val) => {
+    const el = $(('#' + id));
+    el.value = val != null ? fmtFull(val / FU[$('#' + un).value]) : '';
+  };
+  setSI('in_f', 'un_f', v.f); setSI('in_p', 'un_p', v.p);
+  setSI('in_Horb', 'un_Horb', v.Horb); setSI('in_GSD', 'un_GSD', v.GSD); setSI('in_R', 'un_R', v.R);
+  if (meta.blockOrder){ state.order = meta.blockOrder; $('#orderSel').value = state.order; }
+  if (meta.originUnit){ state.originUnit = meta.originUnit; $('#unOrig').value = state.originUnit; }
+  if (r.origins.length){
+    const fac = originFactor();
+    const L = ['ccd\tx\ty'];
+    for (const o of r.origins) L.push(`${o.idx}\t${fmtFull(o.x0 / fac)}\t${fmtFull(o.y0 / fac)}`);
+    $('#inOrigins').value = L.join('\n') + '\n';
+    $('#origFileHint').textContent = '来自参数 TXT';
+  }
+  if (meta.tol != null){
+    const sel = $('#tolSel');
+    sel.value = String(meta.tol);
+    if (sel.value === ''){
+      let best = sel.options[0];
+      for (const o of sel.options) if (Math.abs(+o.value - meta.tol) < Math.abs(+best.value - meta.tol)) best = o;
+      sel.value = best.value;
+    }
+    state.tol = +sel.value;
+  }
+  if (meta.filename){ $('#fnameEcho').value = meta.filename; }
+  recalc();
+  const cnt = Object.keys(v).length + r.origins.length;
+  toast('已从 ' + file.name + ' 读取 ' + cnt + ' 个参数/原点' +
+    (r.warnings.length ? '；' + r.warnings.length + ' 行被忽略，首个：' + r.warnings[0] : ''),
+    r.warnings.length > 0);
+});
+
+/* ---------- 事件 ---------- */
+$('#orderSel').addEventListener('change', e => { state.order = e.target.value; recalc(); });
+$('#unOrig').addEventListener('change', e => { state.originUnit = e.target.value; recalc(); });
+$('#tolSel').addEventListener('change', e => { state.tol = +e.target.value; recalc(); });
+$('#inOrigins').addEventListener('input', () => recalc());
+for (const id of ['in_B','in_W','in_H','in_f','in_p','in_Horb','in_GSD','in_R'])
+  $(('#' + id)).addEventListener('input', () => recalc());
+/* 为单位切换做真正的数值换算：在 change 前捕获旧单位 */
+(function bindUnits(){
+  const FU = {mm: 1e-3, m: 1, μm: 1e-6, cm: 1e-2, km: 1e3};
+  for (const [id, un] of [['in_f','un_f'],['in_p','un_p'],['in_Horb','un_Horb'],['in_GSD','un_GSD'],['in_R','un_R']]){
+    const sel = $(('#' + un));
+    let prev = sel.value;
+    sel.addEventListener('change', () => {
+      const inp = $(('#' + id));
+      const v = parseFloat(inp.value);
+      if (inp.value.trim() !== '' && isFinite(v)){
+        const si = v * FU[prev];
+        inp.value = String(parseFloat((si / FU[sel.value]).toPrecision(6)));
+      }
+      prev = sel.value;
+      recalc();
+    });
+  }
+})();
+
+/* ---------- localStorage ---------- */
+const LS_KEY = 'frame_coef_state';
+function save(){
+  const raw = {
+    originText: $('#inOrigins').value, originUnit: state.originUnit,
+    B: $('#in_B').value, W: $('#in_W').value, H: $('#in_H').value,
+    fname: $('#fnameEcho').value,
+    f: $('#in_f').value, un_f: $('#un_f').value,
+    p: $('#in_p').value, un_p: $('#un_p').value,
+    Horb: $('#in_Horb').value, un_Horb: $('#un_Horb').value,
+    GSD: $('#in_GSD').value, un_GSD: $('#un_GSD').value,
+    R: $('#in_R').value, un_R: $('#un_R').value,
+    order: state.order, tol: state.tol,
+  };
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(raw)); }catch(e){}
+}
+function load(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem(LS_KEY)); }catch(e){}
+  if (!d) return;
+  let restored = 0;
+  const set = (id, v) => { if (v != null && v !== ''){ $(('#' + id)).value = v; restored++; } };
+  if (d.originText != null && d.originText !== ''){ $('#inOrigins').value = d.originText; restored++; }
+  set('in_B', d.B); set('in_W', d.W); set('in_H', d.H); set('fnameEcho', d.fname);
+  set('in_f', d.f); set('in_p', d.p); set('in_Horb', d.Horb); set('in_GSD', d.GSD); set('in_R', d.R);
+  for (const k of ['un_f','un_p','un_Horb','un_GSD','un_R'])
+    if (d[k]) $(('#' + k)).value = d[k];
+  if (d.originUnit){ state.originUnit = d.originUnit; $('#unOrig').value = d.originUnit; }
+  if (d.order){ state.order = d.order; $('#orderSel').value = d.order; }
+  if (d.tol != null){ state.tol = d.tol; $('#tolSel').value = String(d.tol); }
+  if (restored) toast('已自动恢复上次输入（' + restored + ' 项，存于本浏览器；「重置」可清除）');
+}
+$('#btnReset').addEventListener('click', () => {
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
+  location.reload();
+});
+
+/* ---------- toast ---------- */
+let toastTimer = 0;
+function toast(msg, isErr){
+  let t = $('#toast');
+  if (!t){ t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.className = 'show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, isErr ? 6000 : 3500);
+}
+
+/* ---------- 启动 ---------- */
+$('#fnameEcho').value = 'frame.coef';
+$('#inOrigins').value = DEFAULT_ORIGINS;
+load();
+recalc();
+</script>
+</body>
+</html>

@@ -126,7 +126,7 @@ header{animation:rise .4s ease both}
       <h2>爱玩的老人</h2>
       <p>个人主页 —— 有趣的声音、工具与游戏，都收在这里。</p>
       <div class="chips">
-        <span class="chip">🛰️ 相机参数工具 × 2</span>
+        <span class="chip">🛰️ 相机参数工具 × 3</span>
         <span class="chip">🎮 经典游戏 × 1</span>
         <span class="chip">🎵 声音站点 × 2</span>
       </div>
@@ -145,6 +145,18 @@ header{animation:rise .4s ease both}
         <li>实时 .coef 预览并保存到本地（CRLF、%.18e，与实例文件格式一致）</li>
       </ul>
       <span class="file">pushbroom.html</span>
+      <span class="go">打开 <i class="arr">→</i></span>
+    </a>
+
+    <a class="card" href="frame.html" style="--t1:#7c3aed;--t2:#4f46e5;--ts:124,58,237">
+      <span class="head"><span class="ico">🛰️</span><h2>面阵相机参数计算</h2></span>
+      <span class="tag">生成 gf4b-VIS.coef 格式安装系数文件 · 版本以页面内显示为准</span>
+      <ul>
+        <li>CCD 原点自文本文件读取（kjg.txt 格式），sensorCount = 原点行数</li>
+        <li>Type=Frame、含 height，二元 3 次多项式（CamPoly=3，每行 10 系数）</li>
+        <li>焦面布置示意图 / 搭接与间隙检查，实时 .coef 预览保存（CRLF、%.18e）</li>
+      </ul>
+      <span class="file">frame.html</span>
       <span class="go">打开 <i class="arr">→</i></span>
     </a>
 
@@ -197,7 +209,7 @@ header{animation:rise .4s ease both}
 </footer>
 <script>
 'use strict';
-const VERSION = 'v1.0.260820-6';
+const VERSION = 'v1.0.260826-1';
 document.getElementById('ver').textContent = VERSION;
 document.getElementById('ver2').textContent = VERSION;
 </script>
