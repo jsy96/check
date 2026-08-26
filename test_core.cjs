@@ -48,13 +48,13 @@ console.log('Case A：全冗余输入（含视场角参数）应零矛盾');
   assert(badK.length === 0, '无约束违反');
 }
 
-console.log('Case B：摆扫周期 8s → 周期内飞行 > 沿迹覆盖 → 条带漏扫报警');
+console.log('Case B：摆扫周期 14s（往返 8s）→ 周期内推进 > 一次摆扫沿轨距离 → 条带漏扫报警');
 {
-  const val = core.solve({...base, t_fly:8}, 'start');
+  const val = core.solve({...base, t_fly:14}, 'start');
   const con = core.buildConstraints(val, 'start');
   const hit = con.find(c=>c.name.includes('条带间不漏扫') && c.status==='bad');
   console.log('    ' + (hit ? hit.detail : '（未触发）'));
-  assert(!!hit, '条带间漏扫约束触发为 bad');
+  assert(!!hit, '条带间漏扫约束触发为 bad（v_g·T往返 = 7062×8 ≈ 56.5 km > D∥ 51.2 km）');
 }
 
 console.log('Case C：只给骨干参数 → 推导链补全');
@@ -67,6 +67,7 @@ console.log('Case C：只给骨干参数 → 推导链补全');
   assert(val.D_cross && relErr(val.D_cross.value, 5120) < 1e-9, 'D⊥ = H·W/f = 5120 m');
   assert(val.Theta && relErr(val.Theta.value, thetaTot) < 1e-9, 'Θ = N_f·Δθ = 4.8e-3 rad（0.275°）');
   assert(val.t_fly && relErr(val.t_fly.value, 6) < 1e-9, 'T = N_f·t_f（连续摆扫）= 6 s');
+  assert(val.t_retrace && Math.abs(val.t_retrace.value) < 1e-12, 'T往返 = T − N_f·t_f = 0（连续摆扫）');
   assert(val.SW && relErr(val.SW.value, 2400) < 0.01, 'SW ≈ 2.400 km（球面换算，1% 内）');
   assert(val.fov_along && relErr(val.fov_along.value, 0.1024) < 1e-9, 'Ω∥ = L/f 推导');
   assert(val.fov_cross && relErr(val.fov_cross.value, 0.01024) < 1e-9, 'Ω⊥ = W/f 推导');
@@ -125,15 +126,25 @@ console.log('Case G：参数 TXT 序列化 → 解析 往返一致');
   assert(r4.inputs.H === 500e3 && r4.warnings.length === 0, '带 BOM 文件头正确剥离');
 }
 
-console.log('Case H：摆扫周期 7s → 每次摆扫距离（T×卫星速度）> 沿迹覆盖 → 报警，地速口径仍通过');
+console.log('Case H：摆扫周期 13s（往返 7s）→ 每次摆扫距离（T×卫星速度）> 一次摆扫沿轨方向距离 → 报警，地速口径仍通过');
 {
-  const val = core.solve({...base, t_fly:7}, 'start');
+  const val = core.solve({...base, t_fly:13}, 'start');
   const con = core.buildConstraints(val, 'start');
   const hit = con.find(c=>c.name.includes('每次摆扫距离') && c.status==='bad');
   console.log('    ' + (hit ? hit.detail : '（未触发）'));
-  assert(!!hit, '每次摆扫距离不漏扫约束触发为 bad（v·T = 7616.9×7 ≈ 53.3 km > 51.2 km）');
+  assert(!!hit, '每次摆扫距离不漏扫约束触发为 bad（v·T = 7616.9×13 ≈ 99.0 km > v·T成像+D∥ ≈ 96.9 km）');
   const strip = con.find(c=>c.name.includes('条带间不漏扫'));
-  assert(!!strip && strip.status==='ok', '同期地速口径 v_g·T = 7062×7 ≈ 49.4 km ≤ 51.2 km 仍为 ok');
+  assert(!!strip && strip.status==='ok', '同期地速口径 v_g·T = 7062×13 ≈ 91.8 km ≤ v_g·T成像+D∥ ≈ 93.6 km 仍为 ok');
+}
+
+console.log('Case I：只输入往返时间 1s（T 留空）→ T = 成像时长 + T往返 = 7 s 反推');
+{
+  const val = core.solve({N_f:600, F_frame:100, t_retrace:1}, 'start');
+  assert(val.t_fly && relErr(val.t_fly.value, 7) < 1e-9, 'T = N_f·t_f + T往返 = 7 s');
+  assert(val.t_retrace && val.t_retrace.source === '输入', 'T往返 保持输入值不被覆盖');
+  const chk = core.buildChecks(val, 0.02);
+  const hit = chk.find(c=>c.status==='bad' && c.pid==='t_fly');
+  assert(!hit, 'T 留空按 T往返 推导不产生假矛盾（连续公式为假设，不参与互检）');
 }
 
 fs.unlinkSync(corePath);

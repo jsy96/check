@@ -123,8 +123,8 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
         <p><b>几何（星下点平面近似）</b>：<code>D = H·S/f</code>（S 为探测器线尺寸：L 沿迹 / W 穿迹）；像元 GSD = H·p/f；帧间地面步进 <code>s = H·Δθ</code>。</p>
         <p><b>扫描镜 2:1</b>：45° 扫描镜转 1°，视线摆 2°。视线角速度 = 2×镜转速，帧间视线角 <code>Δθ = 2·ω镜·t_f</code>。</p>
         <p><b>总摆扫角</b>：<code>Θ = N_f × Δθ</code>。</p>
-        <p><b>时序</b>：单程摆扫时长 <code>T单程 = N_f·t_f</code>；摆扫周期 T（两次相邻摆扫开始时刻之差）在沿迹组"卫星飞行时长"输入，留空则按连续摆扫 <code>T = T单程</code> 推导。</p>
-        <p><b>漏扫 / 采样判据（核心）</b>：① 帧间步进：帧间角度 <code>Δθ</code> 对应步进 <code>s = H·Δθ</code> 与摆扫方向地面分辨率 <code>GSD⊥ = H·p⊥/f</code> 对比，<code>s &gt; GSD⊥</code> → 帧间欠采样（每步跨多像元，不判帧间漏扫）；② 条带：<code>v_g·T &gt; D∥</code> → 相邻两摆扫行程之间沿迹方向漏缝；③ <code>T &lt; T单程</code> → 摆扫未结束即开始下一程；④ 每次摆扫距离：<code>v·T &gt; D∥</code>（v 为卫星轨道速度）→ 相邻摆扫间沿迹漏缝（较 ② 的地速口径更保守）。</p>
+        <p><b>时序</b>：摆扫周期 T（两次相邻摆扫开始时刻之差）= 成像时长 <code>T成像 = N_f·t_f</code>（单程摆扫）+ 往返时间 <code>T往返</code>（回扫，不成像）。T 在沿迹组输入，留空则按连续摆扫（<code>T往返 = 0</code>）<code>T = N_f·t_f</code> 推导；也可只输入 <code>T往返</code>，由 <code>T = N_f·t_f + T往返</code> 推出。</p>
+        <p><b>漏扫 / 采样判据（核心）</b>：① 帧间步进：帧间角度 <code>Δθ</code> 对应步进 <code>s = H·Δθ</code> 与摆扫方向地面分辨率 <code>GSD⊥ = H·p⊥/f</code> 对比，<code>s &gt; GSD⊥</code> → 帧间欠采样（每步跨多像元，不判帧间漏扫）；② 条带：<code>v_g·T &gt; v_g·T成像 + D∥</code> → 相邻摆扫间沿轨漏缝（等价 <code>v_g·T往返 &gt; D∥</code>）；③ <code>T &lt; T成像</code> → 摆扫未结束即开始下一程；④ 每次摆扫距离：<code>v·T &gt; v·T成像 + D∥</code>（v 为卫星轨道速度；一次摆扫沿轨方向距离 = v·T成像 + D∥，即成像期间沿轨推进 + 一帧沿迹覆盖）→ 相邻摆扫间沿轨漏缝（较 ② 的地速口径更保守）。</p>
         <p><b>球面换算（视线角 θ → 地心角 φ）</b>：斜距 <code>t = a·cosθ − √(R² − a²·sin²θ)</code>，地心角 <code>φ = atan2(t·sinθ, a − t·cosθ)</code>；幅宽 <code>SW = R·φ总</code>（星下点居中：<code>φ总 = 2·φ(Θ/2)</code>；从星下点开始：<code>φ总 = φ(Θ)</code>）。视线角超过地平线角 <code>θh = arcsin(R/a)</code> 时视线不与地球相交。</p>
         <p><b>速度</b>：轨道速度 <code>v = √(μ/a)</code>；星下点地速 <code>v_g = v·R/a</code>。漏扫与推进计算使用 v_g。</p>
         <p><b>容差</b>：恒等式两侧相对偏差超过容差判为矛盾（红色）；物理约束为不等式，违反即红色报警；黄色为提示性信息（如摆扫周期大于单程时长，存在空闲/回扫时间）。</p>
@@ -140,7 +140,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：参数定义、求解、校验（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260826-2';
+const VERSION = 'v1.0.260826-3';
 
 const UNIT_TYPES = {
   dist:  {units:[['km',1e3],['m',1],['cm',1e-2],['mm',1e-3],['μm',1e-6]]},
@@ -195,9 +195,13 @@ const PARAMS = [
     note:'一次成像沿迹方向覆盖的地面距离 = H·L/f',
     formulas:[{label:'D∥ = H·L/f',deps:['H','L_det','f'],calc:x=>x.H*x.L_det/x.f},
               {label:'D∥ = H·Ω∥',deps:['H','fov_along'],calc:x=>x.H*x.fov_along}]},
-  {id:'t_fly',grp:'along',name:'卫星飞行时长 = 摆扫周期 T',ut:'time',du:0,
-    note:'两次相邻摆扫开始时刻之差；留空按连续摆扫 = N_f×t_f 推导',
-    formulas:[{label:'T = N_f·t_f（连续摆扫）',deps:['N_f','t_frame'],calc:x=>x.N_f*x.t_frame}]},
+  {id:'t_fly',grp:'along',name:'摆扫周期 T',ut:'time',du:0,
+    note:'两次相邻摆扫开始时刻之差 = 成像时长 + 往返时间（回扫，不成像）；留空按连续摆扫（T往返=0）= N_f×t_f 推导',
+    formulas:[{label:'T = N_f·t_f + T往返',deps:['N_f','t_frame','t_retrace'],calc:x=>x.N_f*x.t_frame+x.t_retrace},
+              {label:'T = N_f·t_f（连续摆扫）',noCheck:true,deps:['N_f','t_frame'],calc:x=>x.N_f*x.t_frame}]},
+  {id:'t_retrace',grp:'along',name:'往返时间 T往返（回扫，不成像）',ut:'time',du:0,
+    note:'摆扫周期内不成像时长 = T − 成像时长（T成像 = N_f·t_f）',
+    formulas:[{label:'T往返 = T − N_f·t_f',deps:['t_fly','N_f','t_frame'],calc:x=>x.t_fly-x.N_f*x.t_frame}]},
   // ---- 穿迹（摆扫方向） ----
   {id:'M_det',grp:'cross',name:'探测器个数 M（穿迹像元数）',ut:'none',du:0,
     formulas:[{label:'M = W/p⊥',deps:['W_det','p_cross'],calc:x=>x.W_det/x.p_cross}]},
@@ -297,6 +301,7 @@ function buildChecks(val, tol){
     const cur = val[p.id];
     for (const fm of p.formulas){
       if (!fm.deps.every(d => val[d])) continue;
+      if (fm.noCheck) continue;      // 假设型公式（如连续摆扫 T往返=0 的 T = N_f·t_f），非恒等式，不参与互检
       if (cur && cur.source === fm.label) continue; // 自己的来源，跳过
       const key = [p.id, ...fm.deps].sort().join('|');
       if (seen.has(key)) continue;
@@ -320,16 +325,17 @@ function buildConstraints(val, mode){
   const has = (...ids) => ids.every(d => val[d]);
   setMode(mode);
 
-  // ① 条带间不漏扫（老金核心需求）：摆扫周期 × 地速 ≤ 沿迹覆盖
-  if (has('v_gnd','t_fly','D_along')){
-    const d = x.v_gnd * x.t_fly, D = x.D_along;
-    const derived = /连续/.test(val.t_fly.source || '');
-    if (d <= D)
-      C.push({name:'条带间不漏扫（v_g·T ≤ D∥）',status:'ok',
-        detail:`周期内飞行 ${fmtSI(d,'dist')} ≤ 沿迹覆盖 ${fmtSI(D,'dist')}，条带重叠率 ${pct(1-d/D)}${derived?'（T 为推导值）':''}`});
+  // ① 条带间不漏扫（老金核心需求）：周期内推进 ≤ 一次摆扫沿轨距离（地速口径）
+  if (has('v_gnd','t_fly','N_f','t_frame','D_along')){
+    const Tim = x.N_f * x.t_frame;                   // 成像时长 T成像
+    const d = x.v_gnd * x.t_fly, L = x.v_gnd * Tim + x.D_along;
+    const derived = val.t_fly.source !== '输入';
+    if (d <= L)
+      C.push({name:'条带间不漏扫（v_g·T ≤ v_g·T成像 + D∥）',status:'ok',
+        detail:`周期内推进 ${fmtSI(d,'dist')} ≤ 一次摆扫沿轨距离 ${fmtSI(L,'dist')}（v_g·T成像 ${fmtSI(x.v_gnd*Tim,'dist')} + D∥ ${fmtSI(x.D_along,'dist')}），余量 ${fmtSI(L-d,'dist')}${derived?'（T 为推导值）':''}`});
     else
-      C.push({name:'条带间不漏扫（v_g·T ≤ D∥）',status:'bad',
-        detail:`两次摆扫之间沿迹漏扫：周期内飞行 ${fmtSI(d,'dist')} > 沿迹覆盖 ${fmtSI(D,'dist')}，漏缝 ${fmtSI(d-D,'dist')}（占覆盖 ${pct((d-D)/D)}）`});
+      C.push({name:'条带间不漏扫（v_g·T ≤ v_g·T成像 + D∥）',status:'bad',
+        detail:`两次摆扫之间沿轨漏缝：周期内推进 ${fmtSI(d,'dist')} > 一次摆扫沿轨距离 ${fmtSI(L,'dist')}，漏缝 ${fmtSI(d-L,'dist')}（往返期间推进超 D∥ 部分）`});
   }
   // ② 帧间步进与摆扫方向分辨率匹配（老金口径）：Δθ 对应步进 ≤ 单像元地面分辨率，不判帧间漏扫
   if (has('H','dtheta','p_cross','f')){
@@ -341,18 +347,18 @@ function buildConstraints(val, mode){
       C.push({name:'帧间步进 ≤ 摆扫方向地面分辨率（H·Δθ ≤ GSD⊥）',status:'bad',
         detail:`帧间步进 ${fmtSI(s,'dist')} > 摆扫方向地面分辨率 ${fmtSI(g,'dist')}（GSD⊥ = H·p⊥/f），每步跨 ${fmtNum(s/g)} 像元，帧间欠采样`});
   }
-  // ③ 时序匹配：摆扫周期 ≥ 单程摆扫时长
+  // ③ 时序匹配：摆扫周期 T = 成像时长 + 往返时间，往返时间不得为负
   if (has('t_fly','N_f','t_frame')){
-    const Ts = x.N_f * x.t_frame, T = x.t_fly;
-    if (T < Ts)
-      C.push({name:'摆扫周期 ≥ 单程摆扫时长',status:'bad',
-        detail:`周期 ${fmtSI(T,'time')} < 单程时长 ${fmtSI(Ts,'time')}：摆扫尚未结束即开始下一程，时序矛盾`});
-    else if (T > Ts)
-      C.push({name:'摆扫周期 ≥ 单程摆扫时长',status:'info',
-        detail:`周期 ${fmtSI(T,'time')} > 单程时长 ${fmtSI(Ts,'time')}，空闲/回扫时间 ${fmtSI(T-Ts,'time')}`});
+    const Tim = x.N_f * x.t_frame, T = x.t_fly;
+    if (T < Tim)
+      C.push({name:'摆扫周期 ≥ 成像时长（T往返 ≥ 0）',status:'bad',
+        detail:`摆扫周期 ${fmtSI(T,'time')} < 成像时长 T成像 ${fmtSI(Tim,'time')}：摆扫尚未结束即开始下一程，时序矛盾`});
+    else if (T > Tim)
+      C.push({name:'摆扫周期 ≥ 成像时长（T往返 ≥ 0）',status:'info',
+        detail:`往返时间 T往返 = T − T成像 = ${fmtSI(T-Tim,'time')}（回扫，不成像）`});
     else
-      C.push({name:'摆扫周期 ≥ 单程摆扫时长',status:'ok',
-        detail:`周期 = 单程时长 = ${fmtSI(T,'time')}（连续摆扫）`});
+      C.push({name:'摆扫周期 ≥ 成像时长（T往返 ≥ 0）',status:'ok',
+        detail:`T = T成像 = ${fmtSI(T,'time')}（连续摆扫，T往返 = 0）`});
   }
   // ④ 总摆扫角不超出地平线
   if (has('Theta','R','a')){
@@ -365,16 +371,18 @@ function buildConstraints(val, mode){
       C.push({name:'总摆扫角在地平线内',status:'bad',
         detail:`摆扫边缘视线角 ${fmtSI(edge,'ang')} > 地平线角 ${fmtSI(thH,'ang')}：视线扫出地球，无法成像`});
   }
-  // ⑤ 每次摆扫距离不漏扫（老金口径）：摆扫周期 T × 卫星速度 ≤ 沿迹地面覆盖 D∥
-  if (has('v_sat','t_fly','D_along')){
-    const d = x.v_sat * x.t_fly, D = x.D_along;
-    const derived = /连续/.test(val.t_fly.source || '');
-    if (d <= D)
-      C.push({name:'每次摆扫距离不漏扫（T·v ≤ D∥）',status:'ok',
-        detail:`每次摆扫距离 ${fmtSI(d,'dist')}（T×卫星速度）≤ 沿迹地面覆盖 ${fmtSI(D,'dist')}，重叠率 ${pct(1-d/D)}${derived?'（T 为推导值）':''}`});
+  // ⑤ 摆扫间沿轨不漏扫（老金口径）：每次摆扫距离 T×v ≤ 一次摆扫沿轨方向距离 = v·T成像 + D∥
+  if (has('v_sat','t_fly','N_f','t_frame','D_along')){
+    const Tim = x.N_f * x.t_frame;                   // 成像时长 T成像
+    const d = x.v_sat * x.t_fly;                     // 每次摆扫距离
+    const L = x.v_sat * Tim + x.D_along;             // 一次摆扫沿轨方向距离
+    const derived = val.t_fly.source !== '输入';
+    if (d <= L)
+      C.push({name:'每次摆扫距离不漏扫（T·v ≤ v·T成像 + D∥）',status:'ok',
+        detail:`每次摆扫距离 ${fmtSI(d,'dist')} ≤ 一次摆扫沿轨方向距离 ${fmtSI(L,'dist')}（v·T成像 ${fmtSI(x.v_sat*Tim,'dist')} + D∥ ${fmtSI(x.D_along,'dist')}），往返期间推进 ${fmtSI(x.v_sat*(x.t_fly-Tim),'dist')} ≤ D∥${derived?'（T 为推导值）':''}`});
     else
-      C.push({name:'每次摆扫距离不漏扫（T·v ≤ D∥）',status:'bad',
-        detail:`相邻摆扫漏缝：每次摆扫距离 ${fmtSI(d,'dist')}（T×卫星速度）> 沿迹地面覆盖 ${fmtSI(D,'dist')}，漏缝 ${fmtSI(d-D,'dist')}（占覆盖 ${pct((d-D)/D)}）`});
+      C.push({name:'每次摆扫距离不漏扫（T·v ≤ v·T成像 + D∥）',status:'bad',
+        detail:`摆扫间沿轨漏缝：每次摆扫距离 ${fmtSI(d,'dist')} > 一次摆扫沿轨方向距离 ${fmtSI(L,'dist')}，漏缝 ${fmtSI(d-L,'dist')}（往返期间推进超 D∥ 部分）`});
   }
   return C;
 }
@@ -389,8 +397,9 @@ function buildRefs(val, mode){
   if (has('H','p_cross','f'))    R.push(['星下点 GSD（穿迹）= H·p⊥/f', fmtSI(x.H*x.p_cross/x.f,'dist')]);
   if (has('p_along','f'))        R.push(['单像元 IFOV（沿迹）= p∥/f', fmtSI(x.p_along/x.f,'ang')]);
   if (has('p_cross','f'))        R.push(['单像元 IFOV（穿迹）= p⊥/f', fmtSI(x.p_cross/x.f,'ang')]);
-  if (has('N_f','t_frame'))      R.push(['单程摆扫时长 = N_f·t_f', fmtSI(x.N_f*x.t_frame,'time')]);
+  if (has('N_f','t_frame'))      R.push(['成像时长 T成像 = N_f·t_f（单程摆扫）', fmtSI(x.N_f*x.t_frame,'time')]);
   if (has('v_gnd','t_fly'))      R.push(['摆扫周期内卫星飞行距离 = v_g·T', fmtSI(x.v_gnd*x.t_fly,'dist')]);
+  if (has('v_sat','N_f','t_frame','D_along')) R.push(['一次摆扫沿轨方向距离 = v·T成像 + D∥', fmtSI(x.v_sat*x.N_f*x.t_frame+x.D_along,'dist')]);
   if (has('v_gnd','t_fly','D_along')) R.push(['条带重叠率（沿迹）', pct(1-x.v_gnd*x.t_fly/x.D_along)]);
   if (has('H','dtheta','p_cross','f')) R.push(['帧间步进折合像元数（H·Δθ / GSD⊥）', fmtNum(x.H*x.dtheta/(x.H*x.p_cross/x.f)) + ' 像元']);
   if (has('R','a'))              R.push(['地平线视线角 θh = arcsin(R/a)', fmtSI(Math.asin(x.R/x.a),'ang')]);
@@ -541,7 +550,7 @@ function buildForm(){
     card.className = 'card';
     let h = `<h2>${g.name}</h2>`;
     if (g.id === 'along') h += `<div class="sub">飞行方向；D∥ 为一次成像沿迹覆盖宽度</div>`;
-    if (g.id === 'cross') h += `<div class="sub">摆扫方向；摆扫周期取自沿迹组"卫星飞行时长"</div>`;
+    if (g.id === 'cross') h += `<div class="sub">摆扫方向；摆扫周期取自沿迹组"摆扫周期 T"</div>`;
     card.innerHTML = h;
     if (g.id === 'cross'){
       const md = document.createElement('div');
