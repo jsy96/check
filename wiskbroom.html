@@ -124,7 +124,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
         <p><b>扫描镜 2:1</b>：45° 扫描镜转 1°，视线摆 2°。视线角速度 = 2×镜转速，帧间视线角 <code>Δθ = 2·ω镜·t_f</code>。</p>
         <p><b>总摆扫角</b>：<code>Θ = N_f × Δθ</code>。</p>
         <p><b>时序</b>：摆扫周期T（两次相邻摆扫开始时刻之差）= 一个摆扫周期内成像时长 <code>T成像 = N_f·t_f</code>（单程摆扫）+ 往返时间 <code>T往返</code>（回扫，不成像）。T 留空则按连续摆扫（<code>T往返 = 0</code>）<code>T = N_f·t_f</code> 推导；也可只输入 <code>T往返</code>（由 <code>T = N_f·t_f + T往返</code> 推出 T）或输入 <code>T成像 + T往返</code> 组合反推 T。</p>
-        <p><b>漏扫 / 采样判据（核心）</b>：① 帧间：摆扫方向瞬时视场角 <code>= atan(M·p⊥/f)</code>（整阵列一次成像的瞬时视场，M 为穿迹探测器个数、W = M·p⊥）与 帧间角度 <code>Δθ</code>（视线）对比，<b>瞬时视场角 &gt; Δθ 才无漏缝</b>（等价于瞬时地面覆盖 D⊥ &gt; 帧间距离 Δθ×H），<code>瞬时视场角 ≤ Δθ</code> → 帧间漏缝（欠扫描）；② <code>T &lt; T成像</code> → 摆扫未结束即开始下一程；③ 每次摆扫距离：<code>v_g·T &gt; D∥</code>（v_g 为卫星相对地表速度，即星下点地速 = v·R/a；D∥ = 沿轨方向视场大小对应的地面距离 = H·Ω∥ = H·L/f）→ 相邻摆扫间沿轨漏缝。</p>
+        <p><b>漏扫 / 采样判据（核心）</b>：① 帧间：摆扫方向瞬时视场角 <code>= atan(M·p⊥/f)</code>（整阵列一次成像的瞬时视场，M 为穿迹探测器个数、W = M·p⊥）与 帧间角度 <code>Δθ</code>（视线）对比，<b>瞬时视场角 &gt; Δθ 才无漏缝</b>（等价于瞬时地面覆盖 D⊥ &gt; 帧间距离 Δθ×H），<code>瞬时视场角 ≤ Δθ</code> → 帧间漏缝（欠扫描）；② <code>T &lt; T成像</code> → 摆扫未结束即开始下一程；③ 每次摆扫距离：<code>摆扫距离（T×v_g）与 沿迹球面距离 对比大小</code>（v_g 为卫星相对地表速度，即星下点地速 = v·R/a；沿迹球面距离 = <b>沿迹视场角 Ω∥ = L/f 先经球面换算求出地心张角 Δλ∥ = 2·φ(Ω∥/2)</b>（星下点居中），<b>× 地球半径 R（预填 6371 km）</b>；平面近似 D∥ = H·Ω∥ = H·L/f 仅作对照）：<code>T·v_g &gt; 沿迹球面距离</code> → 相邻摆扫间沿轨漏缝。</p>
         <p><b>球面换算（视线角 θ → 地心角 φ）</b>：斜距 <code>t = a·cosθ − √(R² − a²·sin²θ)</code>，地心角 <code>φ = atan2(t·sinθ, a − t·cosθ)</code>；幅宽 <code>SW = R·φ总</code>（星下点居中：<code>φ总 = 2·φ(Θ/2)</code>；从星下点开始：<code>φ总 = φ(Θ)</code>）。视线角超过地平线角 <code>θh = arcsin(R/a)</code> 时视线不与地球相交。</p>
         <p><b>速度</b>：轨道速度 <code>v = √(μ/a)</code>；星下点地速 <code>v_g = v·R/a</code>。漏扫与推进计算使用 v_g。</p>
         <p><b>容差</b>：恒等式两侧相对偏差超过容差判为矛盾（红色）；物理约束为不等式，违反即红色报警；存在往返时间（T往返 &gt; 0）属正常摆扫时序，不提示。</p>
@@ -140,7 +140,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：参数定义、求解、校验（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260826-12';
+const VERSION = 'v1.0.260826-13';
 
 const UNIT_TYPES = {
   dist:  {units:[['km',1e3],['m',1],['cm',1e-2],['mm',1e-3],['μm',1e-6]]},
@@ -191,10 +191,16 @@ const PARAMS = [
   {id:'fov_along',grp:'along',name:'沿迹视场角 Ω∥（阵列）',ut:'ang',du:0,
     note:'沿迹阵列总视场角 = L/f',
     formulas:[{label:'Ω∥ = L/f',deps:['L_det','f'],calc:x=>x.L_det/x.f}]},
-  {id:'D_along',grp:'along',name:'沿迹地面覆盖 D∥',ut:'dist',du:0,
-    note:'一次成像沿迹方向覆盖的地面距离 = H·L/f',
+  {id:'D_along',grp:'along',name:'沿迹地面覆盖 D∥（平面近似）',ut:'dist',du:0,
+    note:'星下点平面近似 = H·L/f，仅作对照；漏扫判据改用沿迹球面距离（R×Δλ∥）',
     formulas:[{label:'D∥ = H·L/f',deps:['H','L_det','f'],calc:x=>x.H*x.L_det/x.f},
               {label:'D∥ = H·Ω∥',deps:['H','fov_along'],calc:x=>x.H*x.fov_along}]},
+  {id:'lambda_along',grp:'along',name:'沿迹地心张角 Δλ∥',ut:'ang',du:0,
+    note:'沿迹视场角 Ω∥ 经球面换算的地心张角 = 2·φ(Ω∥/2)，星下点居中',
+    formulas:[{label:'Δλ∥ = 2·φ(Ω∥/2)',deps:['fov_along','R','a'],calc:x=>2*geoPhi(x.fov_along/2,x.R,x.a)}]},
+  {id:'D_along_sph',grp:'along',name:'沿迹球面距离 = R×Δλ∥',ut:'dist',du:0,
+    note:'沿迹方向地面覆盖的球面口径 = 地心张角 Δλ∥ × 地球半径 R（预填 6371 km），漏扫判据用此值',
+    formulas:[{label:'沿迹球面距离 = R·Δλ∥',deps:['R','lambda_along'],calc:x=>x.R*x.lambda_along}]},
   {id:'t_fly',grp:'along',name:'摆扫周期T',ut:'time',du:0,
     note:'两次相邻摆扫开始时刻之差 = 成像时长 + 往返时间（回扫，不成像）；留空按连续摆扫（T往返=0）= N_f×t_f 推导',
     formulas:[{label:'T = N_f·t_f + T往返',deps:['N_f','t_frame','t_retrace'],calc:x=>x.N_f*x.t_frame+x.t_retrace},
@@ -366,16 +372,17 @@ function buildConstraints(val, mode){
       C.push({name:'总摆扫角在地平线内',status:'bad',
         detail:`摆扫边缘视线角 ${fmtSI(edge,'ang')} > 地平线角 ${fmtSI(thH,'ang')}：视线扫出地球，无法成像`});
   }
-  // ④ 每次摆扫距离不漏扫（老金口径）：T×卫星相对地表速度（地速 v_g）≤ 沿轨方向视场大小对应的地面距离 D∥
-  if (has('v_gnd','t_fly','D_along')){
-    const d = x.v_gnd * x.t_fly, D = x.D_along;
+  // ④ 每次摆扫距离不漏扫（老金口径）：摆扫距离（T×卫星相对地表速度 v_g）与 沿迹球面距离对比
+  //    沿迹球面距离 = 地心张角 Δλ∥ × 地球半径 R；Δλ∥ 由沿迹视场角 Ω∥ 球面换算（星下点居中 Δλ∥ = 2·φ(Ω∥/2)）
+  if (has('v_gnd','t_fly','D_along_sph')){
+    const d = x.v_gnd * x.t_fly, D = x.D_along_sph;
     const derived = val.t_fly.source !== '输入';
     if (d <= D)
-      C.push({name:'每次摆扫距离不漏扫（T·v_g ≤ D∥）',status:'ok',
-        detail:`每次摆扫距离 ${fmtSI(d,'dist')}（T×卫星相对地表速度 v_g）≤ 沿轨视场对应地面距离 D∥ ${fmtSI(D,'dist')}（= H·Ω∥ = H·L/f），重叠率 ${pct(1-d/D)}${derived?'（T 为推导值）':''}`});
+      C.push({name:'每次摆扫距离不漏扫（T·v_g ≤ 沿迹球面距离）',status:'ok',
+        detail:`每次摆扫距离 ${fmtSI(d,'dist')}（T×卫星相对地表速度 v_g）≤ 沿迹球面距离 ${fmtSI(D,'dist')}（沿迹视场角 Ω∥ → 地心张角 Δλ∥ ${fmtSI(x.lambda_along,'ang')} × 地球半径 R），重叠率 ${pct(1-d/D)}${derived?'（T 为推导值）':''}`});
     else
-      C.push({name:'每次摆扫距离不漏扫（T·v_g ≤ D∥）',status:'bad',
-        detail:`摆扫间沿轨漏缝：每次摆扫距离 ${fmtSI(d,'dist')}（T×卫星相对地表速度 v_g）> 沿轨视场对应地面距离 D∥ ${fmtSI(D,'dist')}，漏缝 ${fmtSI(d-D,'dist')}（占覆盖 ${pct((d-D)/D)}）`});
+      C.push({name:'每次摆扫距离不漏扫（T·v_g ≤ 沿迹球面距离）',status:'bad',
+        detail:`摆扫间沿轨漏缝：每次摆扫距离 ${fmtSI(d,'dist')}（T×卫星相对地表速度 v_g）> 沿迹球面距离 ${fmtSI(D,'dist')}（沿迹视场角 Ω∥ → 地心张角 Δλ∥ ${fmtSI(x.lambda_along,'ang')} × 地球半径 R），漏缝 ${fmtSI(d-D,'dist')}（占覆盖 ${pct((d-D)/D)}）`});
   }
   return C;
 }
@@ -391,7 +398,7 @@ function buildRefs(val, mode){
   if (has('p_along','f'))        R.push(['单像元 IFOV（沿迹）= p∥/f', fmtSI(x.p_along/x.f,'ang')]);
   if (has('p_cross','f'))        R.push(['单像元 IFOV（穿迹）= p⊥/f', fmtSI(x.p_cross/x.f,'ang')]);
   if (has('v_gnd','t_fly'))      R.push(['每次摆扫距离 = T×卫星相对地表速度（v_g）', fmtSI(x.v_gnd*x.t_fly,'dist')]);
-  if (has('v_gnd','t_fly','D_along')) R.push(['条带重叠率（沿迹）', pct(1-x.v_gnd*x.t_fly/x.D_along)]);
+  if (has('v_gnd','t_fly','D_along_sph')) R.push(['条带重叠率（沿迹，球面）', pct(1-x.v_gnd*x.t_fly/x.D_along_sph)]);
   if (has('W_det','f'))          R.push(['摆扫方向瞬时视场角 = atan(M·p⊥/f)', fmtSI(Math.atan(x.W_det/x.f),'ang')]);
   if (has('dtheta','p_cross','f')) R.push(['帧间步进折合像元数（Δθ / 单像元 IFOV⊥）', fmtNum(x.dtheta/(x.p_cross/x.f)) + ' 像元']);
   if (has('R','a'))              R.push(['地平线视线角 θh = arcsin(R/a)', fmtSI(Math.asin(x.R/x.a),'ang')]);
@@ -541,7 +548,7 @@ function buildForm(){
     const card = document.createElement('div');
     card.className = 'card';
     let h = `<h2>${g.name}</h2>`;
-    if (g.id === 'along') h += `<div class="sub">飞行方向；D∥ 为一次成像沿迹覆盖宽度</div>`;
+    if (g.id === 'along') h += `<div class="sub">飞行方向；D∥ 为平面近似覆盖，漏扫判据用沿迹球面距离 = R×Δλ∥</div>`;
     if (g.id === 'cross') h += `<div class="sub">摆扫方向；摆扫周期取自沿迹组"摆扫周期T"</div>`;
     card.innerHTML = h;
     if (g.id === 'cross'){

@@ -48,13 +48,15 @@ console.log('Case A：全冗余输入（含视场角参数）应零矛盾');
   assert(badK.length === 0, '无约束违反');
 }
 
-console.log('Case B：摆扫周期 8s → 每次摆扫距离 T×卫星相对地表速度 v_g > 沿轨视场地面距离 D∥ → 漏扫报警');
+console.log('Case B：摆扫周期 8s → 每次摆扫距离 T×卫星相对地表速度 v_g > 沿迹球面距离（R×Δλ∥）→ 漏扫报警');
 {
   const val = core.solve({...base, t_fly:8}, 'start');
   const con = core.buildConstraints(val, 'start');
   const hit = con.find(c=>c.name.includes('每次摆扫距离') && c.status==='bad');
   console.log('    ' + (hit ? hit.detail : '（未触发）'));
-  assert(!!hit, '每次摆扫距离不漏扫约束触发为 bad（v_g·T = 7062×8 ≈ 56.5 km > D∥ 51.2 km）');
+  assert(!!hit, '每次摆扫距离不漏扫约束触发为 bad（v_g·T = 7062×8 ≈ 56.5 km > 沿迹球面距离 51.25 km）');
+  assert(val.lambda_along && val.D_along_sph && val.D_along_sph.source === '沿迹球面距离 = R·Δλ∥',
+    '沿迹视场角 Ω∥ → 地心张角 Δλ∥ = 0.4609° → 沿迹球面距离 = R×Δλ∥ ≈ 51253 m（推导链闭环）');
 }
 
 console.log('Case C：只给骨干参数 → 推导链补全');
@@ -127,13 +129,13 @@ console.log('Case G：参数 TXT 序列化 → 解析 往返一致');
   assert(r4.inputs.H === 500e3 && r4.warnings.length === 0, '带 BOM 文件头正确剥离');
 }
 
-console.log('Case H：摆扫周期 6.5s（含往返 0.5s）→ 每次摆扫距离 45.9 km ≤ D∥ 51.2 km → 判据通过');
+console.log('Case H：摆扫周期 6.5s（含往返 0.5s）→ 每次摆扫距离 45.9 km ≤ 沿迹球面距离 51.25 km → 判据通过');
 {
   const val = core.solve({...base, t_fly:6.5}, 'start');
   const con = core.buildConstraints(val, 'start');
   const hit = con.find(c=>c.name.includes('每次摆扫距离'));
   console.log('    ' + (hit ? hit.detail : '（未找到约束）'));
-  assert(!!hit && hit.status === 'ok', '每次摆扫距离不漏扫约束为 ok（v_g·T = 7062×6.5 ≈ 45.9 km ≤ D∥ 51.2 km）');
+  assert(!!hit && hit.status === 'ok', '每次摆扫距离不漏扫约束为 ok（v_g·T = 7062×6.5 ≈ 45.9 km ≤ 沿迹球面距离 51.25 km）');
   const seq = con.find(c=>c.name.includes('摆扫周期'));
   assert(!!seq && seq.status === 'ok', '含往返时间（T往返=0.5s）时时序约束为 ok，不再 ⚠ 提示');
   assert(!con.some(c=>c.name.includes('条带间不漏扫')), '地速口径的重复约束「条带间不漏扫」已移除');
