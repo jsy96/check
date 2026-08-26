@@ -48,13 +48,13 @@ console.log('Case A：全冗余输入（含视场角参数）应零矛盾');
   assert(badK.length === 0, '无约束违反');
 }
 
-console.log('Case B：摆扫周期 14s（往返 8s）→ 周期内推进 > 一次摆扫沿轨距离 → 条带漏扫报警');
+console.log('Case B：摆扫周期 8s → 周期内推进 v_g·T > 沿轨视场地面距离 D∥ → 条带漏扫报警');
 {
-  const val = core.solve({...base, t_fly:14}, 'start');
+  const val = core.solve({...base, t_fly:8}, 'start');
   const con = core.buildConstraints(val, 'start');
   const hit = con.find(c=>c.name.includes('条带间不漏扫') && c.status==='bad');
   console.log('    ' + (hit ? hit.detail : '（未触发）'));
-  assert(!!hit, '条带间漏扫约束触发为 bad（v_g·T往返 = 7062×8 ≈ 56.5 km > D∥ 51.2 km）');
+  assert(!!hit, '条带间漏扫约束触发为 bad（v_g·T = 7062×8 ≈ 56.5 km > D∥ 51.2 km）');
 }
 
 console.log('Case C：只给骨干参数 → 推导链补全');
@@ -126,15 +126,15 @@ console.log('Case G：参数 TXT 序列化 → 解析 往返一致');
   assert(r4.inputs.H === 500e3 && r4.warnings.length === 0, '带 BOM 文件头正确剥离');
 }
 
-console.log('Case H：摆扫周期 13s（往返 7s）→ 每次摆扫距离（T×卫星速度）> 一次摆扫沿轨方向距离 → 报警，地速口径仍通过');
+console.log('Case H：摆扫周期 7s → 每次摆扫距离（T×卫星速度）> D∥ → 报警，地速口径仍通过');
 {
-  const val = core.solve({...base, t_fly:13}, 'start');
+  const val = core.solve({...base, t_fly:7}, 'start');
   const con = core.buildConstraints(val, 'start');
   const hit = con.find(c=>c.name.includes('每次摆扫距离') && c.status==='bad');
   console.log('    ' + (hit ? hit.detail : '（未触发）'));
-  assert(!!hit, '每次摆扫距离不漏扫约束触发为 bad（v·T = 7616.9×13 ≈ 99.0 km > v·T成像+D∥ ≈ 96.9 km）');
+  assert(!!hit, '每次摆扫距离不漏扫约束触发为 bad（v·T = 7616.9×7 ≈ 53.3 km > D∥ 51.2 km）');
   const strip = con.find(c=>c.name.includes('条带间不漏扫'));
-  assert(!!strip && strip.status==='ok', '同期地速口径 v_g·T = 7062×13 ≈ 91.8 km ≤ v_g·T成像+D∥ ≈ 93.6 km 仍为 ok');
+  assert(!!strip && strip.status==='ok', '同期地速口径 v_g·T = 7062×7 ≈ 49.4 km ≤ D∥ 51.2 km 仍为 ok');
 }
 
 console.log('Case I：只输入往返时间 1s（T 留空）→ T = 成像时长 + T往返 = 7 s 反推');
