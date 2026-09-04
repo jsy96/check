@@ -2,6 +2,7 @@
 
 ## 更新记录
 
+- **2026-08-28** `pushbroom.html` 更名 `line.html`（v1.0.260828-1）+ `test_pushbroom.cjs` 更名 `test_line.cjs`：工具名「线阵推扫相机参数计算」→「线阵相机参数计算」（title/h1、参数 TXT 文件头注释同步去「推扫」）；文件内 pushbroom 字样全部改 line——默认输出文件名 pushbroom.coef → line.coef、参数 TXT 下载名前缀 pushbroom_params_ → line_params_、localStorage 键 pushbroom_coef_state → line_coef_state（浏览器里旧自动保存的输入一次失效，重新输入即可）；index.html 入口链接/卡片标题同步并升版 v1.0.260828-1。wiskbroom.html、frame.html 保持不动；`node test_line.cjs` 8 个用例全部通过。
 - **2026-08-26** `frame.html` v1.0.260826-6：像素→视线映射**实质性修正定稿**（老金更正）：**行号（height，向下）增大 → tanX 增大（+p/f，行号与 tanX 同向下）；列号（width，向右）增大 → tanY 减小（−p/f，tanY 向左为正）**，即 tanX = x₀/f + (p/f)·行号、tanY = y₀/f − (p/f)·列号——系数槽位改为 **lookAngleX c₂ = +p/f（行号项）、lookAngleY c₁ = −p/f（列号项）**（v-4/v-5 的「列号→tanX +、行号→tanY +」口径作废）。连锁修正：片 footprint = 沿轨 H·p × 垂轨 W·p；**探元 (0,0) 在该片焦面左上角**（tanX 最小=顶、tanY 最大=左），图像视图（列右/行下）与焦面视图方向一致；虚拟整帧 lookAngleY c₀ = **max** y₀/f（列 0 = 帧左缘）、width = ⌈Δy/p⌉+W（垂轨）、height = ⌈Δx/p⌉+H（沿轨）；gf4b 实例的线性项槽位（c₁(X)/c₂(Y) 均 +p/f）系其实例相机自身口径，与本工具设计口径不同（文件语法一致），文档已如实注明。理想 2×2 拼接（行向搭接 2138、列向 2072）仍精确重现实例尺寸 22504×22438。默认 W/H 对调为 5120×2048（保持默认参数全绿）。test_frame.cjs Cases A/B/C/E/F/I 断言按新口径重写（79 项断言全部通过）。
 - **2026-08-26** `frame.html` v1.0.260826-5：坐标系口径统一——**相机焦平面坐标**（原点在光轴中心，x 沿飞行方向向下为正、y 垂轨向左为正）与**图像传感器像素坐标**（原点在图像左上角，width 列号向右、height 行号向下）正式命名并全文统一；示意图左上角新增方向标注（↓ 沿轨 x / ← 垂轨 y）。75 项断言全部通过。（该版的行/列→tan 映射方向已在 v1.0.260826-6 更正。）
 - **2026-08-26** `frame.html` v1.0.260826-4：焦面示意图坐标轴口径**修正定稿**——图中垂直轴为 x（width 方向，lookAngleX）**向下为正**、水平轴为 y（height 方向，lookAngleY）**向左为正**（与线阵 pushbroom 同族的焦面/视线口径；v1.0.260826-2 曾把图旋转成图像口径，系对「width 向右为正」的误读）；各片**探元 (0,0) 在该片右上角**（width 序号向下增大、height 序号向左增大）；「x（width 方向）向右为正、y（height 方向）向下为正」为**数据/图像口径**，与焦面视图相差 90°（由 lookAngle 正斜率 c₁ = c₂ = p/f 关联），已在示意图说明与底部「格式与口径说明」注明。多项式模型与 .coef 输出完全不变（纯示意调整）。test_frame.cjs Case I 方向断言同步（第 1 片在最上最右、24 片分两列、片竖跨 W·p·k &lt; 横跨 H·p·k），75 项断言全部通过。
@@ -26,14 +27,14 @@
 
 | 文件 | 说明 |
 |---|---|
-| `index.html` | 主页「爱玩的老人」（v1.0.260826-1，视觉美化版：极光渐变背景、玻璃吸顶栏、渐变图标卡片与悬停/入场动效）：上半部分「本站工具与游戏」依次链接 pushbroom.html / frame.html / wiskbroom.html / game.html（一起小学在最右侧），下半部分「有趣的声音」链接 bigdog.leige.site / music.leige.site |
+| `index.html` | 主页「爱玩的老人」（v1.0.260828-1，视觉美化版：极光渐变背景、玻璃吸顶栏、渐变图标卡片与悬停/入场动效）：上半部分「本站工具与游戏」依次链接 line.html / frame.html / wiskbroom.html / game.html（一起小学在最右侧），下半部分「有趣的声音」链接 bigdog.leige.site / music.leige.site |
 | `wiskbroom.html` | 面阵相机卫星摆扫 · 参数一致性校验（v1.0.260826-12） |
-| `pushbroom.html` | 线阵推扫相机参数计算（v1.0.260826-1） |
+| `line.html` | 线阵相机参数计算（v1.0.260828-1） |
 | `frame.html` | 面阵相机参数计算（v1.0.260826-6） |
 | `test_core.cjs` | wiskbroom.html 核心计算自测 |
-| `test_pushbroom.cjs` | pushbroom.html 核心计算自测（含用 taijing304_MSS.coef 复现几何模型） |
+| `test_line.cjs` | line.html 核心计算自测（含用 taijing304_MSS.coef 复现几何模型） |
 | `test_frame.cjs` | frame.html 核心计算自测（含用 gf4b-VIS.coef 解析复现几何模型） |
-| `taijing304_MSS.coef` | 线阵推扫相机安装系数实例文件（4 波段 × 3 片 × 3072 探元），推扫工具的输出格式参照 |
+| `taijing304_MSS.coef` | 线阵相机安装系数实例文件（4 波段 × 3 片 × 3072 探元），线阵工具（line.html）的输出格式参照 |
 | `gf4b-VIS.coef` | 面阵相机安装系数实例文件（Type=Frame，2×2 拼接 4 片 12288×12288 + 虚拟整帧 22504×22438），面阵工具的输出格式参照 |
 | `kjg.txt` | 面阵 CCD 焦面原点实例文件（24 片，TAB 分隔 `ccd/x/y`，mm），面阵工具的原点输入格式 |
 | `game.html` | 独立娱乐页面（v1.0.260820-1） |
@@ -60,9 +61,9 @@
 
 ---
 
-## 工具二：线阵推扫相机参数计算（pushbroom.html）
+## 工具二：线阵相机参数计算（line.html）
 
-输入线阵推扫相机参数，实时计算并**生成/保存 `taijing304_MSS.coef` 格式的安装系数文件**到本地。
+输入线阵相机参数，实时计算并**生成/保存 `taijing304_MSS.coef` 格式的安装系数文件**到本地。
 
 ### 输入参数
 
@@ -107,7 +108,7 @@ lookAngleY: c0 c1 …        垂轨方向 tan 多项式（"lookAngleY:" 后有�
 ### 自测
 
 ```
-node test_pushbroom.cjs
+node test_line.cjs
 ```
 
 8 个用例：实例文件几何复现（13 块全部系数）、片/波段块顺序、垂轨布置居中、GSD 闭包与矛盾报警、交错排列、非法参数拦截、%.18e/%.18f 与 CRLF 字节格式、参数 TXT 往返（含角度单位、BOM、dbN 行）。
@@ -116,7 +117,7 @@ node test_pushbroom.cjs
 
 ## 工具三：面阵相机参数计算（frame.html）
 
-输入面阵（Frame）相机参数，实时计算并**生成/保存 `gf4b-VIS.coef` 格式的安装系数文件**到本地。与线阵推扫（工具二）对应的面阵版本，三点差异：① 文件头多 `Type=Frame`、每块多一行 `height=`；② lookAngle 为**二元 3 次多项式**（`CamPoly=3`，每行 10 系数，项序 1, x, y, x², xy, y², x³, x²y, xy², y³）；③ 每片 CCD 的焦面原点 (x₀, y₀) 自文本文件读取（kjg.txt 格式），sensorCount = 原点行数。
+输入面阵（Frame）相机参数，实时计算并**生成/保存 `gf4b-VIS.coef` 格式的安装系数文件**到本地。与线阵（工具二）对应的面阵版本，三点差异：① 文件头多 `Type=Frame`、每块多一行 `height=`；② lookAngle 为**二元 3 次多项式**（`CamPoly=3`，每行 10 系数，项序 1, x, y, x², xy, y², x³, x²y, xy², y³）；③ 每片 CCD 的焦面原点 (x₀, y₀) 自文本文件读取（kjg.txt 格式），sensorCount = 原点行数。
 
 ### 输入参数
 

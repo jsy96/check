@@ -1,11 +1,11 @@
 'use strict';
-/* 自测：从 pushbroom.html 抽出 <script id="core"> 真实代码，
+/* 自测：从 line.html 抽出 <script id="core"> 真实代码，
    验证几何模型（用 taijing304_MSS.coef 数值复现）、块顺序、格式化、
-   光学闭包、校验触发、TXT 参数文件往返。运行：node test_pushbroom.cjs */
+   光学闭包、校验触发、TXT 参数文件往返。运行：node test_line.cjs */
 const fs = require('fs');
 const path = require('path');
 
-const html = fs.readFileSync(path.join(__dirname, 'pushbroom.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, 'line.html'), 'utf8');
 const m = html.match(/<script id="core">([\s\S]*?)<\/script>/);
 if (!m) { console.error('FAIL: 未找到 core script 块'); process.exit(1); }
 const corePath = path.join(__dirname, '_pb_core_tmp.cjs');

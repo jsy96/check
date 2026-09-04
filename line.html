@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>线阵推扫相机参数计算</title>
+<title>线阵相机参数计算</title>
 <style>
 :root{
   --bg:#f4f6f9;--card:#ffffff;--ink:#1f2a36;--mut:#68788a;--line:#dde4ec;
@@ -99,7 +99,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 </head>
 <body>
 <header>
-  <h1>线阵推扫相机参数计算</h1>
+  <h1>线阵相机参数计算</h1>
   <span class="ver" id="ver"></span>
   <div class="hctl">
     <label>容差
@@ -279,7 +279,7 @@ details summary{cursor:pointer;font-weight:600;color:var(--acc)}
 <script id="core">
 'use strict';
 /* ============ 核心：几何模型、系数生成、校验、TXT 读写（不依赖 DOM，可被 Node 自测加载） ============ */
-const VERSION = 'v1.0.260826-1';
+const VERSION = 'v1.0.260828-1';
 const DEG = Math.PI / 180;
 
 /* ---- C 风格格式化 ---- */
@@ -621,7 +621,7 @@ function paramsToText(state){ // state：{values(SI 或整数), db:[{idx,value(S
   const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
   const angMode = state.meta.offsetMode === 'angle';
   const L = [
-    '# 线阵推扫相机参数文件（pushbroom.html）',
+    '# 线阵相机参数文件（line.html）',
     `# 工具版本: ${VERSION}    保存时间: ${stamp}`,
     '# 行格式: 参数ID = 数值 [单位]；偏移字段单位随 offsetMode；# 开头与行内 # 之后为注释',
     '',
@@ -1024,7 +1024,7 @@ function renderBanner(checks){
 /* ---------- .coef 下载 ---------- */
 $('#btnSave').addEventListener('click', () => {
   if (!coreOut.text){ toast('当前无法生成 .coef 文件', true); return; }
-  let name = ($('#fnameEcho').value || 'pushbroom.coef').trim() || 'pushbroom.coef';
+  let name = ($('#fnameEcho').value || 'line.coef').trim() || 'line.coef';
   if (!/\.coef$/i.test(name)) name += '.coef';
   const blob = new Blob([coreOut.text], {type: 'application/octet-stream'});
   const a = document.createElement('a');
@@ -1072,7 +1072,7 @@ $('#btnExportTxt').addEventListener('click', () => {
   const cnt = Object.keys(t.values).length + t.db.length;
   if (!cnt){ toast('当前没有输入任何参数，无内容可保存', true); return; }
   const ts = new Date(), pad = x => String(x).padStart(2, '0');
-  const fname = 'pushbroom_params_' + ts.getFullYear() + pad(ts.getMonth() + 1) + pad(ts.getDate())
+  const fname = 'line_params_' + ts.getFullYear() + pad(ts.getMonth() + 1) + pad(ts.getDate())
     + '-' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds()) + '.txt';
   const blob = new Blob([String.fromCharCode(0xFEFF) + paramsToText(t)], {type: 'text/plain;charset=utf-8'});
   const a = document.createElement('a');
@@ -1188,7 +1188,7 @@ for (const id of ['in_N','in_W','in_ovl','in_polyN','in_f','in_p','in_H','in_GSD
 })();
 
 /* ---------- localStorage ---------- */
-const LS_KEY = 'pushbroom_coef_state';
+const LS_KEY = 'line_coef_state';
 function save(){
   const raw = {
     B: $('#in_B').value, N: $('#in_N').value, W: $('#in_W').value,
@@ -1252,7 +1252,7 @@ function toast(msg, isErr){
 }
 
 /* ---------- 启动 ---------- */
-$('#fnameEcho').value = 'pushbroom.coef';
+$('#fnameEcho').value = 'line.coef';
 renderOffUnitSel();
 toggleLayout();
 buildBandRows();
